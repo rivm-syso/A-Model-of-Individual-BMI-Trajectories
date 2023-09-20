@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:/Projecten/V02001214 KV2.1.B CZmodellering/6. Producten/2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories/Submitted/Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -24,23 +24,22 @@ body{text-align: justify}
 
 In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
 
-This document analyses the historical trend of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/VZinfo/BMI/Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+This document analyses the historical trend of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
 
 Before we begin, we need to load the packages _gamlss.dist_ and _tidyverse_ [@Rigby2005; @tidyverse2019].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
-source("../../Pipeline Configuration.R")
 library(gamlss.dist)
 library(tidyverse)
 ```
 
 # Load Data
 
-Historical data related to BMI were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-VZinfo.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/VZinfo/Clean-VZinfo.html), where the data are also explored in more detail.
+Historical data related to BMI were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-VZinfo.html_](./Clean-VZinfo.html), where the data are also explored in more detail.
 
 ```{r}
 bmi.by.year.and.sex <- read_csv(
-  file = paste0(input.data.path, "/Risk Factors/BMI by Year and Sex.csv"),
+  file = "../Output Data/VZinfo.csv",
   col_types = cols(
     date = col_date(),
     sex = col_factor(levels = c("0", "1")),
@@ -56,7 +55,7 @@ In the analysis below, we will also need the $\nu$ and $\tau$ parameters which w
 
 ```{r}
 bmi.parameters.by.sex <- read_csv(
-  file = "Population Level Distribution of BMI.csv",
+  file = "../Output Data/Population Level Distribution of BMI.csv",
   col_types = cols_only(
     sex = col_factor(levels = c("0", "1")),
     nu = col_double(),
@@ -293,7 +292,16 @@ ggplot() +
 ```
 <center>Figure 2</center>
 
-Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters, this need not imply that the prevalences of overweight and obesity follow a straight line.
+Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters, this need not imply that the prevalences of overweight and obesity follow a straight line. This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Historical Trend.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
 
 Let's also create a plot of the resulting BMI distribution by year and sex. As previously mentioned, the trend in overweight and obesity is, in part, due to an increase in the spread of the BMI distribution, which can clearly be seen in [figure (3)](#fig:BMI-Distribution-by-Year).
 
@@ -333,9 +341,9 @@ Finally, we write the coefficients of our $\mu$ and $\sigma$ trend to a CSV file
 
 ```{r}
 write_csv(
-  x = estimated.bmi.trend.parameters.by.sex %>%
+  estimated.bmi.trend.parameters.by.sex %>%
     select(sex, mu.year, sigma.year),
-  file = "Historical Trend of BMI.csv"
+  "../Output Data/Historical Trend of BMI.csv"
 )
 ```
 

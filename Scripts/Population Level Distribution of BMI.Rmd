@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Submitted\\Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -24,12 +24,11 @@ body{text-align: justify}
 
 In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
 
-This document analyses the population level distribution of BMI of the adult population of the Netherlands in 2012. Other documents include [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/VZinfo/BMI/Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+This document analyses the population level distribution of BMI of the adult population of the Netherlands in 2012. Other documents include [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
 
-Before we begin, we need to load the packages _gamlss_, _splines_, _tidyverse_, _gganimate_, _gifski_, _ggbreak_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @gganimate2020; @gifski2022; @ggbreak2021; @vtable2021].
+Before we begin, we need to load the packages _gamlss_, _splines_, _tidyverse_, _gganimate_, _gifski_, _ggbreak_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @gganimate2020; @gifski2022; @ggbreak2021; @vtable2021]. 
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
-source("../../Pipeline Configuration.R")
 library(gamlss)
 library(splines)
 library(tidyverse)
@@ -41,7 +40,7 @@ library(vtable)
 
 # Load Data
 
-The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html), where the data are also explored in more detail.
+The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html), where the data are also explored in more detail.
 
 The data were gathered in September, October and November of 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model. Furthermore, the data for 2016 will be reserved for external validation, described below. This leads to our choice of fitting the model on the 2012 data.
 
@@ -49,7 +48,7 @@ Throughout the document, we will limit the output in each step. This is because 
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 bmi.data <- read_csv(
-  file = paste0(input.data.path, "/Risk Factors/Gezondheidsmonitor.csv"),
+  file = "../Output Data/Gezondheidsmonitor.csv",
   col_types = cols_only(
     year = col_integer(),
     sex = col_factor(levels = c("0", "1")),
@@ -868,6 +867,17 @@ bmi.parametric.plot
 ```
 <center>Figure 11</center>
 
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Population Level Distribution Parameters.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
 It can be helpful to visualise the distribution parameters as functions of sex, level of education and age together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (11)](#fig:BMI-Distribution-Parameters), resulting in [figure (12)](#fig:BMI-Distribution-Parameters-with-Labels).
 
 <a id="fig:BMI-Distribution-Parameters-with-Labels"/>
@@ -1130,7 +1140,7 @@ Finally, we write the coefficients of our parametric model to a CSV file.
 ```{r}
 write_csv(
   x = bmi.parametric.coefficients,
-  file = "Population Level Distribution of BMI.csv"
+  file = "../Output Data/Population Level Distribution of BMI.csv"
 )
 ```
 

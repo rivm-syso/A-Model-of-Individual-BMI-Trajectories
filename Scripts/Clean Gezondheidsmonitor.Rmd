@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Submitted\\Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -34,28 +34,11 @@ library(vtable)
 
 # Load Input
 
-[Placeholder for Text]
-
-```{r}
-population.by.year.sex.education.and.age <- read_csv(
-  file = "../CBS/Demography/Population Size by Date, Sex, Education and Age.csv",
-  col_type = cols_only(
-    date = col_date(),
-    sex = col_factor(),
-    education = col_factor(),
-    age_lower = col_double(),
-    age_upper = col_double(),
-    population.size = col_integer()
-  )
-)
-population.by.year.sex.education.and.age
-```
-
 Let's load the Gezondheidsmonitor dataset. The survey was first conducted in September, October and November of 2012, and was repeated in 2016 and in 2020. We will combine all three datasets here. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
-  file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2012/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
+  file = "../Input Data/Gezondheidsmonitor/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
   col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201", "LFALA201", "LFALA202", "LFALS218", "LFRKA205", "LFRKA206", "LFRKA207")
 ) %>%
   zap_labels() %>%
@@ -76,7 +59,7 @@ gezondheidsmonitor.data <- read_sav(
   mutate(year = 2012) %>%
   bind_rows(
     read_sav(
-      file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2016/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
+      file = "../Input Data/Gezondheidsmonitor/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
       col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA201", "LFALA202", "alc_week","LFRKA205", "LFRKA206", "LFRKA207")
     ) %>%
       zap_labels() %>%
@@ -95,28 +78,6 @@ gezondheidsmonitor.data <- read_sav(
         nooitroker = LFRKA207
       ) %>%
       mutate(year = 2016)
-  ) %>%
-  bind_rows(
-    read_sav(
-      file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2020/2022_2_28Totaalbestand GGD en CBS (N=539.902) Landelijk.sav",
-      col_select = c("Surveynummer", "ewGGDkern", "Geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA217", "LFALA218", "alc_week", "LFRKA205", "LFRKA206", "LFRKA207")
-    ) %>%
-      zap_labels() %>%
-      rename(
-        sex = Geslacht,
-        education = Opleiding_samind,
-        weight = ewGGDkern,
-        age = LFT0109,
-        bmi = AGGWS201,
-        drinker_last_year = LFALA217,
-        exdrinker = LFALA218,
-        #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
-        glasses_per_week = alc_week,
-        roker = LFRKA205,
-        exroker = LFRKA206,
-        nooitroker = LFRKA207
-      ) %>%
-      mutate(year = 2020)
   )
 ```
 
@@ -210,7 +171,6 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 Let's check that there are only adults in the dataset. We also verify that there are no missing values.
 
-```{r}
 gezondheidsmonitor.data %>%
   summarise(
     min = min(age),
@@ -227,133 +187,6 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
     age = age + 0.5
   )
 ```
-
-# Verify Representativeness
-
-[Placeholder for Text]
-
-```{r}
-gezondheidsmonitor.data %>%
-  filter(
-    age >= 25,
-    age < 75
-  ) %>%
-  group_by(year, sex) %>%
-  summarise(
-    population.size = sum(weight),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup()
-```
-
-[Placeholder for Text]
-
-```{r}
-population.by.year.sex.education.and.age %>%
-  filter(
-    year(date) %in% c(2014, 2016, 2020),
-    age_lower >= 25,
-    age_upper < 75
-  ) %>%
-  group_by(year = year(date), sex) %>%
-  summarise(
-    population.size = sum(population.size),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup()
-```
-
-[Placeholder for Text]
-
-```{r}
-gezondheidsmonitor.data %>%
-  filter(
-    age >= 25,
-    age < 75
-  ) %>%
-  group_by(year, education) %>%
-  summarise(
-    population.size = sum(weight),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup()
-```
-
-[Placeholder for Text]
-
-```{r}
-population.by.year.sex.education.and.age %>%
-  filter(
-    year(date) %in% c(2014, 2016, 2020),
-    age_lower >= 25,
-    age_upper < 75
-  ) %>%
-  group_by(year = year(date), education) %>%
-  summarise(
-    population.size = sum(population.size),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup() # Niet in weegmodel
-```
-
-[Placeholder for Text]
-
-```{r}
-gezondheidsmonitor.data %>%
-  filter(
-    age >= 25,
-    age < 75
-  ) %>%
-  group_by(
-    year,
-    age = cut(age, c(25, 35, 45, 55, 65, 75), include.lowest = TRUE, right = FALSE)
-  ) %>%
-  summarise(
-    population.size = sum(weight),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup()
-```
-
-[Placeholder for Text]
-
-```{r}
-population.by.year.sex.education.and.age %>%
-  filter(
-    year(date) %in% c(2014, 2016, 2020),
-    age_lower >= 25,
-    age_upper < 75
-  ) %>%
-  group_by(
-    year = year(date),
-    age = cut(age_lower, c(25, 35, 45, 55, 65, 75), include.lowest = TRUE, right = FALSE)
-  ) %>%
-  summarise(
-    population.size = sum(population.size),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = population.size / sum(population.size)
-  ) %>%
-  ungroup()
-```
-
-[Placeholder for Text]
 
 # Clean BMI
 
@@ -694,7 +527,7 @@ Finally, we write the cleaned data of the Gezondheidsmonitor to a CSV file.
 ```{r}
 write_csv(
   x = gezondheidsmonitor.data,
-  file = "../../Input Data/Risk Factors/Gezondheidsmonitor.csv"
+  file = "../Output Data/Gezondheidsmonitor.csv"
 )
 ```
 

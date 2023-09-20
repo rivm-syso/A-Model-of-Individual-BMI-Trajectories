@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:/Projecten/V02001214 KV2.1.B CZmodellering/6. Producten/2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories/Submitted/Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -24,20 +24,18 @@ body{text-align: justify}
 
 In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
 
-This document analyses the individual trajectories of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/VZinfo/BMI/Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+This document analyses the individual trajectories of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
 
 To model individual trajectories of BMI, we will first reduce the BMI values in the longitudinal datasets to z-scores. This is done by applying the transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html). An individual's trajectory is, then, a sequence of z-scores which indicate the positions relative to the population level distribution. We assume these z-scores follow stochastic trajectories containing long-term, medium-term and short-term effects. This will be described by a generalised autoregressive model and the BMI trajectories are those z-scores back-transformed to the original scale.
 
-Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021]. Finally, we set a seed to ensure that all runs of this document produce the same output.
+Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
-source("../../Pipeline Configuration.R") # TODO: GitHub aanpassen
-source("../../../Utilities/Generalised Autoregressive Model.R") # TODO: GitHub aanpassen
+source("Generalised Autoregressive Model.R")
 library(gamlss)
 library(splines)
 library(tidyverse)
 library(vtable)
-set.seed(456)
 ```
 
 # Load Data
@@ -50,7 +48,7 @@ In the analysis below, we will make use of the population level distribution par
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 population.level.distribution.parameters <- read_csv(
-  file = "Population Level Distribution of BMI.csv",
+  file = "../Output Data/Population Level Distribution of BMI.csv",
   col_type = cols(
     sex = col_factor(levels = c("0", "1")),
     .default = col_double()
@@ -65,7 +63,7 @@ We will also make use of the historical trend parameters which were previously e
 
 ```{r}
 historical.trend.parameters <- read_csv(
-  file = "Historical Trend of BMI.csv",
+  file = "../Output Data/Historical Trend of BMI.csv",
   col_type = cols(
     sex = col_factor(levels = c("0", "1")),
     .default = col_double()
@@ -76,13 +74,13 @@ historical.trend.parameters
 
 ## Longitudinal BMI Data
 
-To understand individual trajectories and to distinguish between long-term, medium-term and short-term effects, we require longitudinal data with multiple measurements over a relatively long time. The Doetinchem Cohort Study provides such data. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html), where the data are also explored in more detail.
+To understand individual trajectories and to distinguish between long-term, medium-term and short-term effects, we require longitudinal data with multiple measurements over a relatively long time. The Doetinchem Cohort Study provides such data. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Doetinchem.html_](./Clean-Doetinchem.html), where the data are also explored in more detail.
 
 Throughout the document, we will limit the output in each step. This is because the Doetinchem data are not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
 
 ```{r}
 doetinchem.data <- read_csv(
-  file = paste0(input.data.path, "/Risk Factors/Doetinchem.csv"),
+  file = "../Output Data/Doetinchem.csv",
   col_type = cols_only(
     participant.id = col_character(),
     sex = col_factor(levels = c("0", "1")),
@@ -101,11 +99,11 @@ vtable(doetinchem.data, out = "return", missing = TRUE)
 
 The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. The datasets are simply joined together before the analysis.
 
-The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail. Throughout the document, we will limit the output in each step. This is because the LISS data are not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](./Clean-LISS.html), where the data are also explored in more detail. Throughout the document, we will limit the output in each step. This is because the LISS data are not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
 
 ```{r}
 liss.data <- read_csv(
-  file = paste0(input.data.path, "/Risk Factors/LISS.csv"),
+  file = "../Output Data/LISS.csv",
   col_type = cols_only(
     participant.id = col_character(),
     sex = col_factor(levels = c("0", "1")),
@@ -614,6 +612,17 @@ covariance.by.time.difference.plot +
 ```
 <center>Figure 6</center>
 
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Covariance By Time Difference.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
 Additionally, we can add the values of the coefficients to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-And-Values).
 
 <a id="fig:Covariance-By-Time-Difference-With-Labels-And-Values"/>
@@ -711,9 +720,9 @@ The simulation study in the document [_Generalised-Autoregressive-Model.html_](.
 Let's now examine some of the resulting trajectories. As mentioned above, a commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. Our approach models the fluctuation over time and we can easily generate some z-score trajectories for both approaches using the functions from the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html). These are, then, transformed to BMI trajectories, following [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
 
 ```{r}
-# seed <- round(1000 * runif(1))
+seed <- round(1000 * runif(1))
 seed <- 997
-# set.seed(seed)
+set.seed(seed)
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
   filter(sex == 0) %>%
   expand_grid(
@@ -778,6 +787,17 @@ ggplot() +
 ```
 <center>Figure 8</center>
 
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Individual Trajectories.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
 # Validation
 
 ## Trajectories
@@ -785,15 +805,15 @@ ggplot() +
 As a way to validate the results from our model, we can generate z-score trajectories and visually compare these to the data of a few individuals in the Doetinchem and LISS datasets.
 
 ```{r}
-# seed <- round(1000 * runif(1))
+seed <- round(1000 * runif(1))
 seed <- 625
-# set.seed(seed)
+set.seed(seed)
 generated.zscore.trajectories <- bmi.trajectory.parameters %>%
   expand_grid(source = c("Doetinchem", "LISS")) %>%
   group_by(source, sex) %>%
   group_modify(
     ~ generate.population.with.generalised.autoregressive.values(
-      n.participants = 9,
+      n.participants = 10,
       n.time.steps = c(Doetinchem = 6, LISS = 14)[.y$source],
       time.step.size = c(Doetinchem = 5, LISS = 1)[.y$source],
       sd.random.intercept = .x$sd.random.intercept,
@@ -803,6 +823,7 @@ generated.zscore.trajectories <- bmi.trajectory.parameters %>%
     )
   ) %>%
   ungroup() %>%
+  mutate(participant.id = paste0(source, sex, participant.id)) %>%
   rename(zscore = value)
 head(generated.zscore.trajectories)
 ```
@@ -815,10 +836,10 @@ longitudinal.bmi.sample <- longitudinal.bmi.data %>%
   filter(n() == c(Doetinchem = 6, LISS = 14)[source]) %>%
   nest() %>%
   ungroup(participant.id) %>%
-  slice_sample(n = 9) %>%
-  mutate(participant.id = seq(n())) %>%
+  slice_sample(n = 10) %>%
   unnest(data) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(participant.id = paste0(source, sex, participant.id))
 longitudinal.bmi.sample
 ```
 
@@ -830,7 +851,8 @@ ggplot(
   mapping = aes(
     x = wave,
     y = zscore,
-    col = interaction(sex, participant.id)
+    group = participant.id,
+    col = participant.id
   ),
   data = longitudinal.bmi.sample %>%
     mutate(type = "Observed") %>%
@@ -856,6 +878,17 @@ ggplot(
   )
 ```
 <center>Figure 9</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Individual Z-Score Trajectories.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
 
 ## Transition Matrix
 
@@ -997,6 +1030,17 @@ ggplot(
 ```
 <center>Figure 10</center>
 
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Transition Matrices.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
 ## Standard Deviation
 
 [Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals who drastically gain- and lose weight over time. Such outlying transitions are not captured by our model. Contrarily, [figure (10)](#fig:Transition-Matrices) suggests our model slightly overestimates the amount of fluctuation which occurs for higher BMI values. It seems that the amount by which the values within the observed trajectories fluctuate differs with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by generating several new trajectories for each individual.
@@ -1068,8 +1112,8 @@ Finally, we write the parameters of our trajectories to a CSV file.
 
 ```{r}
 write_csv(
-  x = bmi.trajectory.parameters,
-  file = "Individual Trajectories of BMI.csv"
+  bmi.trajectory.parameters,
+  "../Output Data/Individual Trajectories of BMI.csv"
 )
 ```
 

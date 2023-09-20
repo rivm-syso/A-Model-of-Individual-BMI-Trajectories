@@ -1,6 +1,6 @@
 ---
 title: "Clean and Explore LISS Data"
-author: "Laurens Bogaardt & Katalin Katona"
+author: "Laurens Bogaardt"
 date: "2023-12-15"
 output:
   html_document:
@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Submitted\\Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -74,7 +74,7 @@ background.data <- map(
     "avars_202112_EN_1.1p.sav"
   ),
   .f = ~ read_sav(
-    file = paste0("../../2. Data Ruw/LISS/Background [CONFIDENTIAL]/", .),
+    file = paste0("../Input Data/LISS/", .),
     col_select = c("nomem_encr", "wave", "geslacht", "gebjaar", "oplcat", "leeftijd")
   ) %>%
     zap_labels() %>%
@@ -113,7 +113,7 @@ health.data <- map(
     "ch21n_EN_1.0p.sav"
   ),
   .f = ~ read_sav(
-    file = paste0("../../2. Data Ruw/LISS/Health [CONFIDENTIAL]/", .),
+    file = paste0("../Input Data/LISS/", .),
     col_select = ends_with(
       c(
         "nomem_encr",
@@ -1540,7 +1540,7 @@ Finally, we write the cleaned data for the LISS panel to a CSV file.
 ```{r}
 write_csv(
   x = liss.data,
-  file = "../../Input Data/Risk Factors/LISS.csv"
+  file = "../Output Data/LISS.csv"
 )
 ```
 
