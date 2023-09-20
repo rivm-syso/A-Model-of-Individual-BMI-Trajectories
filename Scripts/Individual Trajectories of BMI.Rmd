@@ -1,0 +1,1109 @@
+---
+title: "Individual Trajectories of BMI"
+author: "Laurens Bogaardt"
+date: "2023-09-21"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:/Projecten/V02001214 KV2.1.B CZmodellering/6. Producten/2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories/Bibliography.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
+
+This document analyses the individual trajectories of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/VZinfo/BMI/Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+
+To model individual trajectories of BMI, we will first reduce the BMI values in the longitudinal datasets to z-scores. This is done by applying the transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html). An individual's trajectory is, then, a sequence of z-scores which indicate the positions relative to the population level distribution. We assume these z-scores follow stochastic trajectories containing long-term, medium-term and short-term effects. This will be described by a generalised autoregressive model and the BMI trajectories are those z-scores back-transformed to the original scale.
+
+Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021].
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+source("../../Pipeline Configuration.R") # TODO: GitHub aanpassen
+source("../../../Utilities/Generalised Autoregressive Model.R") # TODO: GitHub aanpassen
+library(gamlss)
+library(splines)
+library(tidyverse)
+library(vtable)
+```
+
+# Load Data
+
+Let's now load all the necessary data.
+
+## Population Level Distribution Parameters
+
+In the analysis below, we will make use of the population level distribution parameters which were previously estimated in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+population.level.distribution.parameters <- read_csv(
+  file = "Population Level Distribution and Historical Trend of BMI.csv",
+  col_type = cols(
+    "sex" = col_factor(),
+    .default = col_double()
+  )
+) %>%
+  select(-contains("year")) # TODO: GitHub aanpassen
+population.level.distribution.parameters
+```
+
+## Historical Trend Parameters
+
+We will also make use of the historical trend parameters which were previously estimated in the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html).
+
+```{r}
+historical.trend.parameters <- read_csv(
+  file = "Population Level Distribution and Historical Trend of BMI.csv",
+  col_type = cols(
+    "sex" = col_factor(),
+    .default = col_double()
+  )
+) %>%
+  select(sex, contains("year")) # TODO: GitHub aanpassen
+historical.trend.parameters
+```
+
+## Longitudinal BMI Data
+
+To understand individual trajectories and to distinguish between long-term, medium-term and short-term effects, we require longitudinal data with multiple measurements over a relatively long time. The Doetinchem Cohort Study provides such data. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html), where the data are also explored in more detail.
+
+In the chunk below, we have limited the output. This is because the Doetinchem dataset is not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
+
+```{r}
+doetinchem.data <- read_csv(
+  file = paste0(input.data.path, "/Risk Factors/Doetinchem.csv"),
+  col_type = cols_only(
+    "participant.id" = col_character(),
+    "sex" = col_factor(),
+    "education" = col_factor(),
+    "wave" = col_integer(),
+    "date" = col_date(),
+    "age" = col_double(),
+    "bmi" = col_double()
+  )
+) %>%
+  filter(
+    !is.na(bmi) # TODO: verplaatsen naar clean script
+  )
+vtable(doetinchem.data, out = "return", missing = TRUE)
+```
+
+The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The data loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail.
+
+In the chunk below, we have limited the output. This is because the LISS dataset is not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+
+```{r}
+liss.data <- read_csv(
+  file = paste0(input.data.path, "/Risk Factors/LISS.csv"),
+  col_type = cols_only(
+    "participant.id" = col_character(),
+    "sex" = col_factor(),
+    "education" = col_factor(),
+    "wave" = col_integer(),
+    "date" = col_date(),
+    "age" = col_double(),
+    "bmi" = col_double()
+  )
+) %>%
+  filter(
+    !is.na(bmi) # TODO: verplaatsen naar clean script
+  )
+vtable(liss.data, out = "return", missing = TRUE)
+```
+
+The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. The datasets are simply joined together before the analysis.
+
+# Transform BMI Values
+
+## Determine Z-Scores
+
+We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters). Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores.
+
+```{r}
+longitudinal.bmi.data <- doetinchem.data %>%
+  mutate(
+    source = "Doetinchem"
+  ) %>%
+  bind_rows(
+    liss.data %>%
+      mutate(
+        source = "LISS"
+      )
+  ) %>%
+  left_join(
+    population.level.distribution.parameters %>%
+      pivot_longer(
+        cols = contains("education"),
+        names_to = c(".value", "education"),
+        names_pattern = "(.*)\\.(.)",
+        names_transform = list(education = as.factor)
+      ),
+    by = c("sex", "education")
+  ) %>%
+  left_join(
+    historical.trend.parameters,
+    by = c("sex")
+  ) %>%
+  mutate(
+    time = as.numeric(date - as.Date("2013-01-01")) / 365.25, # TODO: 2012-10-15 i Repo
+    mu = mu.education + mu.age.1 * age + mu.age.2 * age ^ 2 + mu.year * time,
+    sigma = sigma.education + sigma.age.1 * age + sigma.age.2 * age ^ 2 + sigma.year * time,
+    zscore = sinh(tau * asinh((bmi - mu) / (sigma * tau)) - nu)
+  )
+vtable(longitudinal.bmi.data, out = "return", missing = TRUE)
+```
+
+## Validate Transformation
+
+The resulting z-scores should be normally distributed, but the table below shows that the z-scores are not perfectly centred about zero nor have a precisely unit standard deviation. This is not unexpected, as we estimated the population level distribution parameters on a different dataset than the Doetinchem and LISS datasets and we do not expect these to be perfectly representative of the Dutch population.
+
+```{r}
+longitudinal.bmi.data %>%
+  group_by(source, sex) %>%
+  summarise(
+    mean = mean(zscore),
+    sd = sd(zscore),
+    .groups = "drop"
+  )
+```
+
+Let's also check whether there is an age-dependency in this deviation from normal by fitting a flexible spline using the _gamlss_ package [@Rigby2005].
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+zscore.distribution.parameters <- longitudinal.bmi.data %>%
+  group_by(sex, source) %>%
+  group_modify(
+    ~ gamlss(
+      formula = zscore ~ bs(age, df = 5, degree = 2),
+      sigma.formula = ~ bs(age, df = 5, degree = 2),
+      family = NO(),
+      data = .x,
+      trace = FALSE
+    ) %>%
+      predictAll(
+        newdata = data.frame(age = seq(20, 90)),
+        data = .x
+      ) %>%
+      cbind(data.frame(age = seq(20, 90)), .)
+  ) %>%
+  ungroup()
+zscore.distribution.parameters
+```
+
+[Figure (1)](#fig:ZScore-Distribution-Parameters) shows a minor age-dependency in these z-scores. We will deal with this discrepancy later in the analysis.
+
+<a id="fig:ZScore-Distribution-Parameters"/>
+```{r}
+ggplot() +
+  geom_point(
+    mapping = aes(
+      x = age,
+      y = zscore,
+      colour = sex
+    ),
+    data = longitudinal.bmi.data %>%
+      filter(
+        age < 95,
+        zscore < 4.5
+      ),
+    alpha = 0.2
+  ) +
+  geom_ribbon(
+    mapping = aes(
+      x = age,
+      ymin = mu - sigma,
+      ymax = mu + sigma,
+      colour = sex
+    ),
+    data = zscore.distribution.parameters,
+    alpha = 0.1
+  ) +
+  labs(
+    x = "Age",
+    y = "BMI z-scores"
+  ) +
+  scale_y_continuous(
+    breaks = seq(-4, 4, 2)
+  ) +
+  scale_colour_discrete(
+    name = "Sex",
+    labels = c("Male", "Female")
+  ) +
+  facet_wrap(~ source)
+```
+<center>Figure 1</center>
+
+Another reason the transformed BMI values may deviate from true z-scores is that we purposefully modelled the population level distribution and the historical trend using a parsimonious model. With so few parameters, it might not capture all relevant effects. For example, we are ignoring any interaction of the historical trend with the level of education or with age. We had previously commented on the limitations of a linear trend in the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html). Without worrying about statistical significance, [figure (2)](#fig:Historical-Trend-by-Education) suggests that, as a modelling choice, keeping the trend independent of the level of education is a reasonable simplification. We focus on the Doetinchem dataset, as this contains data over a 30-year period in contrast to the LISS dataset which only contains 14 years of data.
+
+<a id="fig:Historical-Trend-by-Education"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = date,
+    y = zscore,
+    colour = education
+  ),
+  data = longitudinal.bmi.data %>%
+    filter(source == "Doetinchem")
+) +
+  geom_point(
+    alpha = 0.03
+  ) +
+  geom_smooth(
+    method = lm,
+    formula = y ~ 1 + x
+  ) +
+  labs(
+    x = "Calendar time",
+    y = "BMI z-score"
+  ) +
+  scale_colour_discrete(
+    name = "Level of education",
+    labels = c("Low", "Medium", "High")
+  ) +
+  facet_wrap(
+    facets = vars(sex),
+    labeller = labeller(sex = c(`0` = "Males", `1` = "Female"))
+  )
+```
+<center>Figure 2</center>
+
+[Figure (3)](#fig:Historical-Trend-by-Age) suggests that a historical trend which is different for different ages may be appropriate. The interpretation of such an interaction, as either a period or a cohort effect, was discussed in the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html).
+
+<a id="fig:Historical-Trend-by-Age"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = date,
+    y = zscore,
+    colour = age
+  ),
+  data = longitudinal.bmi.data %>%
+    filter(source == "Doetinchem") %>%
+    mutate(age = cut(age, c(0, 40, 60, Inf)))
+) +
+  geom_point(
+    alpha = 0.03
+  ) +
+  geom_smooth(
+    method = lm,
+    formula = y ~ 1 + x
+  ) +
+  labs(
+    x = "Calendar time",
+    y = "BMI z-score"
+  ) +
+  scale_colour_discrete(
+    name = "Age",
+    labels = c("40-", "40-60", "60+")
+  ) +
+  facet_wrap(
+    facets = vars(sex),
+    labeller = labeller(sex = c(`0` = "Males", `1` = "Female"))
+  )
+```
+<center>Figure 3</center>
+
+Our intent is to model the z-scores using a generalised autoregressive model. One implicit assumption of such a model is that, for an individual whose z-scores are typically on the upper side of the distribution, the size of the fluctuations over time is the same as for an individual on the lower end. Given that the transformation from BMI values to z-scores removed some of the skewness in the data, this is equivalent to saying that BMI trajectories have larger fluctuation for those individuals at the upper end of the distribution. If our approach makes sense, we need to verify that the size of the original BMI fluctuations positively correlate with an individual's mean BMI. And that this correlation is removed in the z-scores.
+
+```{r}
+correlation.between.mean.bmi.and.its.sd <- longitudinal.bmi.data %>%
+  pivot_longer(c(bmi, zscore)) %>%
+  group_by(source, participant.id, name) %>%
+  filter(n() > 1) %>% # TODO: move?
+  summarise(
+    mean = mean(value),
+    sd = sd(value),
+    .groups = "drop"
+  )
+```
+
+[Figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD) shows that this is approximately true.
+
+<a id="fig:Correlation-between-Mean-BMI-and-its-SD"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = mean,
+    y = sd
+  ),
+  data = correlation.between.mean.bmi.and.its.sd
+) + 
+  geom_point(
+    alpha = 0.1,
+    na.rm = TRUE
+  ) +
+  geom_smooth(
+    method = lm,
+    formula = y ~ x,
+    fill = "blue",
+    na.rm = TRUE
+  ) +
+  labs(
+    x = "Mean per Individual",
+    y = "Standard Deviation per Individual"
+  ) +
+  facet_wrap(
+    facets = vars(source, name),
+    scales = "free",
+    labeller = labeller(name = c(bmi = "BMI", zscore = "Z-score")) # TODO: BMI capital in data?
+  )
+```
+<center>Figure 4</center>
+
+# Generalised Autoregressive Model
+
+## Estimate the Parameters
+
+One commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. This is the approach we take by modelling the trajectories using a generalised autoregressive model. [Figure (8)](#fig:Individual-Trajectories) shows a comparison between the resulting life course trajectories.
+
+The individual trajectories are assumed to contain long-term, medium-term and short-term effects. The long-term effects are then operationalised as a random intercept, which indicates the tendency to belong to the upper- or lower percentiles of the BMI distribution. In the fixed-percentile method, shown in [figure (8)](#fig:Individual-Trajectories), this random intercept is the only effect which determines the trajectories. Our model generalises this method by including medium-term effects which are represented by an autoregressive process (AR1). This process assumes that, at each time period, a random shock occurs which either pushes the BMI z-score up or down. The effect of a shock decays exponentially over time, similar to how habits wax and wane. The overall effect is the sum of all previous shocks, which results in a meandering BMI value with temporal autocorrelation, also visualised in [figure (8)](#fig:Individual-Trajectories). Short-term effects are modelled as additional, uncorrelated error representing daily fluctuations in weight. Note that no random slope is included. Models with these three components are described in detail in [@Diggle1988; @Diggle1994] and [@Verbeke2000], and the relevant functions related to the generalised autoregressive model we use are explored in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html).
+
+Our model is described in [equation (1)](#eq:Generalised-Autoregressive-Model). Here, $Z_{i}$ is the vector of z-scores of individual $i$ measured at $k$ time periods. This includes the three stochastic components of our model. $RI_i$ is the random intercept of individual $i$, which has the same value for all measurements, and $J_k$ is the $k$-by-$k$ matrix with only ones. $AR1_i$ is the vector of $k$ correlated values, where the level of correlation between measurements is a function of the time between these measurements. Finally, $\epsilon_{i}$ is a $k$-vector of independent, random errors and $I_k$ is the identity matrix.
+
+<a id="eq:Generalised-Autoregressive-Model"/>
+\begin{equation}
+\tag{1}
+\begin{array}{@{\ }rcl@{\ }}
+Z_{i} & = & \beta_0 \, + \, \beta_1 \, \times \, age \, + \, RI_i \, + \, AR1_{i} \, + \, \epsilon_{i}\\[1.5mm]
+RI_i & \sim & \mathcal{N}(0, \, \sigma_{intercept}^2 \, \times \, J_k) \\[-0.9mm]
+AR1_{i} & \sim & \mathcal{N}(0, \, \Sigma) \ \ \text{where} \ \ \Sigma_{tt'} = \sigma_{correlated}^2 \, \times \, e^{-\frac{|t - t'|}{\tau_{AR1}}}\\[1.5mm]
+\epsilon_{i} & \sim & \mathcal{N}(0, \, \sigma_{uncorrelated}^2 \, \times \, I_k)
+\end{array}
+\end{equation}
+
+We saw in [figure (1)](#fig:ZScore-Distribution-Parameters) that neither the Doetinchem nor the LISS dataset is a completely representative sample of the Dutch population, so it will have a different population level distribution than the one obtained in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which we used to transform the BMI values into z-scores. Consequently, this procedure need not result in values with zero mean and unit standard deviation; some bias may remain. Ultimately, we want a model which suits the entire population, so which produces true z-scores. A simple solution is to model the bias by including a fixed intercept and fixed slope in our statistical analysis. We are not interested in the values of this intercept and slope, but by including the terms, the other parameters are not compromised.
+
+```{r}
+bmi.trajectory.parameters <- longitudinal.bmi.data %>%
+  group_by(sex) %>%
+  group_modify(
+    ~ fit.generalised.autoregressive.model(
+        data = .x,
+        fixed.formula = zscore ~ 0 + source + source:age
+      ) %>%
+      get.generalised.autoregressive.model.parameters() %>%
+      as_tibble_row()
+  ) %>%
+  ungroup() %>%
+  select(-starts_with("source"))
+bmi.trajectory.parameters
+```
+
+## Calibrate the Variance
+
+Besides a deviation in the mean, [figure (1)](#fig:ZScore-Distribution-Parameters) showed that the variance of the z-scores was not equal to one. We have not restricted our model to produce z-scores with unit variance and the calculation below shows that our model currently has a smaller variance than required.
+
+```{r}
+bmi.trajectory.parameters %>%
+  group_by(sex) %>%
+  summarise(
+    var = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error),
+    sd = sqrt(var),
+    .groups = "drop"
+  )
+```
+
+As the discrepancy is minor, a simple solution is to calibrate the size of the three effects by an overall factor.
+
+```{r}
+bmi.trajectory.parameters <- bmi.trajectory.parameters %>%
+  group_by(sex) %>%
+  mutate(
+    factor = sqrt(get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error)),
+    sd.shock = sd.shock / factor,
+    sd.random.intercept = sd.random.intercept / factor,
+    sd.uncorrelated.error = sd.uncorrelated.error / factor
+  ) %>%
+  ungroup() %>%
+  select(-factor)
+bmi.trajectory.parameters
+```
+
+This now gives us perfect z-scores.
+
+```{r}
+bmi.trajectory.parameters %>%
+  group_by(sex) %>%
+  summarise(
+    var = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error),
+    sd = sqrt(var),
+    .groups = "drop"
+  )
+```
+
+## Explore Results
+
+As mentioned in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html), an autoregressive process can be viewed in two ways. The first shows how a trajectory evolves over time, as a build-up of successive shocks which decay over time, whereas the other can be interpreted as directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories. The parameters we have seen so far align more with the first interpretation of the mechanism. But it is easy to transform the values to align with the latter view.
+
+```{r}
+bmi.trajectory.parameters %>%
+  group_by(sex) %>%
+  summarise(
+    var.random.intercept = sd.random.intercept ^ 2,
+    time.constant = get.time.constant(temporal.correlation),
+    var.correlated.error = get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+    var.uncorrelated.error = sd.uncorrelated.error ^ 2,
+    .groups = "drop"
+  )
+```
+
+Note that the three variances add up to one. Presented this was, the values for the three variances indicate the relative contribution of the long-term, medium-term and short-term effects. Implicitly, we have assumed that these relative contributions do not depend on characteristics such as level of education or age. The time constant indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value. The more time has passed, the lower the covariance between two values, as seen in the table below.
+
+```{r}
+covariance.between.times <- bmi.trajectory.parameters %>%
+  group_by(sex) %>%
+  reframe(
+    time = seq(0, 50),
+    covariance = get.covariance.given.time.difference(
+      time.difference = time + 10 ^ -9,
+      sd.random.intercept = sd.random.intercept,
+      temporal.correlation = temporal.correlation,
+      sd.shock = sd.shock,
+      sd.uncorrelated.error = sd.uncorrelated.error
+    )
+  )
+covariance.between.times
+```
+
+The resulting values are also visualised in [figure (5)](#fig:Covariance-By-Time-Difference). It shows the exponentially decaying covariance which starts off at a value equal to the total variance of one. It drops down instantaneously due to the uncorrelated error. What the correct interpretation of this error is, is up for debate. Instrumental error shows up in both cross-sectional and longitudinal data and increases the population variance [@Biehl2013]. Such noise is best removed. Short-term effects with a physical interpretation, such as eating or drinking, or simply a short-lived new habit, might reasonably be considered a part of someone's BMI and of the data generating mechanism. The autoregressive part of [figure (5)](#fig:Covariance-By-Time-Difference) is determined by the time constant and by the variance of the correlated part. Finally, the figure shows the variance related to the random intercept.
+
+<a id="fig:Covariance-By-Time-Difference"/>
+```{r}
+covariance.by.time.difference.plot <- ggplot(
+  data = bmi.trajectory.parameters
+) +
+  geom_line(
+    mapping = aes(
+      x = time,
+      y = covariance,
+      col = sex
+    ),
+    data = covariance.between.times
+  ) +
+  geom_hline(
+    mapping = aes(
+      yintercept = sd.random.intercept ^ 2,
+      col = sex
+    ),
+    linetype = "dashed"
+  ) +
+  geom_hline(
+    mapping = aes(
+      yintercept = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
+      col = sex
+    ),
+    linetype = "dashed"
+  ) +
+  scale_x_continuous(
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = "Time difference (years)",
+    y = "Covariance"
+  ) +
+  scale_colour_discrete(
+    name = "Sex",
+    labels = c("Male", "Female")
+  )
+covariance.by.time.difference.plot
+```
+<center>Figure 5</center>
+
+It can be helpful to visualise the covariance structure together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (6)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels).
+
+<a id="fig:Covariance-By-Time-Difference-With-Labels"/>
+```{r}
+covariance.by.time.difference.plot +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 41, `1` = 45)[sex],
+      y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
+      xend = c(`0` = 41, `1` = 45)[sex],
+      yend = 1,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.25, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 43,
+      y = 0.96,
+      label = "sigma [epsilon] ^ 2"
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 41, `1` = 45)[sex],
+      y = sd.random.intercept ^ 2 + 0.01,
+      xend = c(`0` = 41, `1` = 45)[sex],
+      yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0) - 0.01,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.25, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 43,
+      y = mean(sd.random.intercept ^ 2 + get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2 / 2),
+      label = "sigma [AR1] ^ 2"
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 41, `1` = 45)[sex],
+      y = 0.01,
+      xend = c(`0` = 41, `1` = 45)[sex],
+      yend = sd.random.intercept ^ 2 - 0.01,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.25, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 43,
+      y = mean(sd.random.intercept ^ 2 / 2),
+      label = "sigma [RI] ^ 2"
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 0.7,
+      y = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      xend = get.time.constant(temporal.correlation) - 1.7,
+      yend = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.25, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = mean(get.time.constant(temporal.correlation) / 2),
+      y = mean(sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2),
+      label = "tau [AR1]"
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  )
+```
+<center>Figure 6</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Covariance By Time Difference.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+Additionally, we can add the values of the coefficients to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels-And-Values).
+
+<a id="fig:Covariance-By-Time-Difference-With-Labels-And-Values"/>
+```{r}
+covariance.by.time.difference.plot +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 5, `1` = 15)[sex],
+      y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
+      xend = c(`0` = 5, `1` = 15)[sex],
+      yend = 1,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.2, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = c(`0` = 10, `1` = 20)[sex],
+      y = 0.96,
+      label = sprintf("sigma [epsilon] ^ 2 == '%.2f'", sd.uncorrelated.error ^ 2)
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 40, `1` = 45)[sex],
+      y = sd.random.intercept ^ 2,
+      xend = c(`0` = 40, `1` = 45)[sex],
+      yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = c(`0` = 40, `1` = 45)[sex],
+      y = sd.random.intercept ^ 2 + get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2 / 2,
+      label = sprintf("sigma [AR1] ^ 2 == '%.2f'", get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2)
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = c(`0` = 20, `1` = 25)[sex],
+      y = 0,
+      xend = c(`0` = 20, `1` = 25)[sex],
+      yend = sd.random.intercept ^ 2,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = c(`0` = 20, `1` = 25)[sex],
+      y = sd.random.intercept ^ 2 / 2,
+      label = sprintf("sigma [RI] ^ 2 == '%.2f'", sd.random.intercept ^ 2)
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 0,
+      y = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      xend = get.time.constant(temporal.correlation),
+      yend = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      col = sex
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = get.time.constant(temporal.correlation) / 2,
+      y = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      label = sprintf("tau [AR1] == '%.1f'", get.time.constant(temporal.correlation))
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE
+  )
+```
+<center>Figure 7</center>
+
+The simulation study in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (6)](#fig:Covariance-By-Time-Difference-With-Labels). In light of this, it may be concluded that the individual trajectories of males and females are quite similar.
+
+Let's now examine some of the resulting trajectories. As mentioned above, a commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. Our approach models the fluctuation over time and we can easily generate some z-score trajectories for both approaches using the functions from the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html). These are, then, transformed to BMI trajectories, following [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
+
+```{r}
+seed <- round(1000 * runif(1))
+seed <- 997
+set.seed(seed)
+generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
+  filter(sex == 0) %>%
+  expand_grid(type = ordered(c("Fixed-percentile method", "Our autoregressive model"), levels = c("Fixed-percentile method", "Our autoregressive model"))) %>%
+  group_by(type) %>%
+  group_modify(
+    ~ generate.population.with.generalised.autoregressive.values(
+      n.participants = 40,
+      n.time.steps = 39,
+      time.step.size = 2,
+      sd.random.intercept = c("Fixed-percentile method" = 1, "Our autoregressive model" = .x$sd.random.intercept)[.y$type],
+      temporal.correlation = .x$temporal.correlation,
+      sd.shock = c("Fixed-percentile method" = 0, "Our autoregressive model" = .x$sd.shock)[.y$type],
+      sd.uncorrelated.error = c("Fixed-percentile method" = 0, "Our autoregressive model" = .x$sd.uncorrelated.error)[.y$type]
+    )
+  ) %>%
+  ungroup() %>%
+  bind_cols(
+    population.level.distribution.parameters %>%
+      filter(sex == 0)
+  ) %>%
+  mutate(
+    age = 18 + time,
+    mu = mu.education.2 + mu.age.1 * age + mu.age.2 * age ^ 2,
+    sigma = sigma.education.2 + sigma.age.1 * age + sigma.age.2 * age ^ 2,
+    bmi = mu + (tau * sigma) * sinh((asinh(value) + nu) / tau)
+  )
+head(generated.bmi.trajectories.for.males.with.medium.education)
+```
+
+[Figure (8)](#fig:Individual-Trajectories) shows a comparison between the resulting life course trajectories. Note that both give the same population level distribution, even when stratifying by sex, level of education or age.
+
+<a id="fig:Individual-Trajectories"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = bmi,
+      group = as.factor(participant.id),
+      col = as.factor(participant.id)
+    ),
+    data = generated.bmi.trajectories.for.males.with.medium.education
+  ) +
+  guides(
+    col = "none"
+  ) +
+  facet_wrap(~ type) +
+  labs(
+    x = "Age",
+    y = "BMI"
+  )
+```
+<center>Figure 8</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Individual Trajectories.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+# Validation
+
+## Trajectories
+
+As a way to validate the results from our model, we can generate z-score trajectories and visually compare these to the data of a few individuals in the Doetinchem and LISS datasets.
+
+```{r}
+seed <- round(1000 * runif(1))
+seed <- 625
+set.seed(seed)
+generated.zscore.trajectories <- bmi.trajectory.parameters %>%
+  expand_grid(source = c("Doetinchem", "LISS")) %>%
+  group_by(source, sex) %>%
+  group_modify(
+    ~ generate.population.with.generalised.autoregressive.values(
+      n.participants = 10,
+      n.time.steps = c(Doetinchem = 6, LISS = 14)[.y$source],
+      time.step.size = c(Doetinchem = 5, LISS = 1)[.y$source],
+      sd.random.intercept = .x$sd.random.intercept,
+      temporal.correlation = .x$temporal.correlation,
+      sd.shock = .x$sd.shock,
+      sd.uncorrelated.error = .x$sd.uncorrelated.error
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(participant.id = paste0(source, sex, participant.id)) %>%
+  rename(zscore = value)
+head(generated.zscore.trajectories)
+```
+
+Let's subsequently sample a few trajectories from the input data.
+
+```{r}
+longitudinal.bmi.sample <- longitudinal.bmi.data %>%
+  group_by(source, participant.id, sex) %>%
+  filter(n() == c(Doetinchem = 6, LISS = 14)[source]) %>%
+  nest() %>%
+  ungroup(participant.id) %>%
+  slice_sample(n = 10) %>%
+  unnest(data) %>%
+  ungroup() %>%
+  mutate(participant.id = paste0(source, sex, participant.id))
+longitudinal.bmi.sample
+```
+
+Although it depends on the precise random samples which are drawn, [figure (9)](#fig:Individual-Z-Score-Trajectories) shows that, on the face of it, the generated z-scores and the observed data are comparable. This give credence to our idea that modelling z-scores using a generalised autoregressive model with an AR1 process yields realistic BMI trajectories. [Figure (9)](#fig:Individual-Z-Score-Trajectories) also shows a few individuals who drastically lose weight over time. Such outlying transitions are not captured by our model, but this need not be a problem as long as it captures the majority of the heterogeneity in the trajectories. Most government policy is aimed at typical individuals with typical trajectories, such as those in our model.
+
+<a id="fig:Individual-Z-Score-Trajectories"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = wave,
+    y = zscore,
+    group = participant.id,
+    col = participant.id
+  ),
+  data = longitudinal.bmi.sample %>%
+    mutate(type = "Observed") %>%
+    bind_rows(
+      generated.zscore.trajectories %>%
+        mutate(type = "Model")
+    )
+) +
+  geom_line() +
+  geom_point() +
+  guides(col = "none") +
+  labs(
+    y = "BMI z-scores"
+  ) +
+  scale_x_continuous(
+    name = "Wave",
+    breaks = seq(14)
+  ) +
+  facet_grid(
+    cols = vars(source),
+    rows = vars(type),
+    scales = "free_x"
+  )
+```
+<center>Figure 9</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Individual Z-Score Trajectories.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+## Transition Matrix
+
+The model we have created is meant as a building block for micro-simulations. In a macro-simulation framework, a different modelling strategy is required, usually in the form of transition matrices. Estimating such matrices is not trivial and often simulations include no transitions at all [@Hendriksen2015]. Others may include the smallest number of transitions between categories necessary to track changes in the population level distribution with age [@VandeKassteele2012]. Our model can be converted to a transition matrix for application in a macro-simulation and this naturally leads to another method to validate the results. We can first categorise all BMI values in the Doetinchem and LISS datasets into underweight (values below $18.5 \, kg / m^2$), normal weight ($18.5 - 25 \, kg / m^2$), overweight ($25 - 30 \, kg / m^2$) or obese (values of $30 \, kg / m^2$ and above). Then, every transition from one category to the next is counted and can be compared with the predicted transitions.
+
+Let $[b_{l1},b_{u1})$ and $[b_{l2},b_{u2})$ define two BMI intervals. To determine the probability for an individual to transition from the first interval to the second, we first need to transform the lower- and upper value of the BMI intervals to the z-score intervals $[z_{l1},z_{u1})$ and $[z_{l2},z_{u2})$. This can, again, be done using [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) by making use of the values for $\mu$, $\sigma$, $\nu$ and $\tau$ which correspond to the individual's sex, level of education and age and to the two calendar times between which the transition takes place, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters).
+
+Subsequently, let $f_{Z}(x_1, x_2)$ define the probability density function of the bivariate random variable $Z = (Z_1, Z_2)$ which is normally distributed according to [equation (1)](#eq:Generalised-Autoregressive-Model) where $|t-t'|$ is the time interval in which the transition takes place. The probability for this individual to experience a transition going from $z_{l1} \leq Z_1 < z_{u1}$ to $z_{l2} \leq Z_2 < z_{u2}$ is, then, given by [equation (3)](#eq:Transition-Matrix).
+
+<a id="eq:Transition-Matrix"/>
+\begin{equation}
+\tag{3}
+\mbox{Pr}(z_{l2} \leq x_2 < z_{u2}|z_{l1} \leq x_1 < z_{u1}) = \frac{\int_{z_{l1}}^{z_{u1}}\int_{z_{l2}}^{z_{u2}}f_{Z}(x_1,x_2)dx_1dx_2}{\int_{z_{l1}}^{z_{u1}}\int_{-\infty}^{\infty}f_{Z}(x_1,x_2)dx_1dx_2}
+\end{equation}
+
+We can use [equation (3)](#eq:Transition-Matrix) to assign probabilities to every possible transition for all individuals in the longitudinal datasets. The final transition matrix is obtained by averaging over all individuals, done separately for both sexes and for Doetinchem and LISS.
+
+```{r}
+model.transitions <- longitudinal.bmi.data %>%
+  group_by(participant.id) %>%
+  mutate(
+    next.mu = lead(mu, order_by = time),
+    next.sigma = lead(sigma, order_by = time),
+    next.time = lead(time, order_by = time)
+  ) %>%
+  filter(
+    !is.na(next.mu),
+    !is.na(next.sigma),
+    !is.na(next.time)
+  ) %>%
+  group_by(source, participant.id, sex, time, next.time) %>%
+  reframe(
+    bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf]"), each = 4),
+    next.bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf]"), times = 4),
+    lower.z.score = sinh(tau * asinh((rep(c(0, 18.5, 25, 30), each = 4) - mu) / (sigma * tau)) - nu),
+    upper.z.score = sinh(tau * asinh((rep(c(18.5, 25, 30, Inf), each = 4) - mu) / (sigma * tau)) - nu),
+    next.lower.z.score = sinh(tau * asinh((rep(c(0, 18.5, 25, 30), times = 4) - next.mu) / (next.sigma * tau)) - nu),
+    next.upper.z.score = sinh(tau * asinh((rep(c(18.5, 25, 30, Inf), times = 4) - next.mu) / (next.sigma * tau)) - nu)
+  ) %>%
+  left_join(
+    bmi.trajectory.parameters,
+    by = c("sex")
+  ) %>%
+  group_by(source, participant.id, sex, time, next.time, bmi.category, next.bmi.category) %>%
+  mutate(
+    transition.probability = get.transition.probability(
+      start.lower = lower.z.score,
+      start.upper = upper.z.score,
+      end.lower = next.lower.z.score,
+      end.upper = next.upper.z.score,
+      time.difference = next.time - time,
+      sd.random.intercept = sd.random.intercept,
+      temporal.correlation = temporal.correlation,
+      sd.shock = sd.shock,
+      sd.uncorrelated.error = sd.uncorrelated.error
+    )
+  ) %>%
+  group_by(source, bmi.category, next.bmi.category) %>%
+  summarise(
+    type = "Model",
+    transition.probability = mean(transition.probability),
+    .groups = "drop"
+  )
+model.transitions
+```
+
+Let's now count the observed transitions for all individuals in the longitudinal datasets. These are aggregated and the $2.5\%$ and $97.5\%$ confidence intervals are included.
+
+```{r}
+observed.transitions <- longitudinal.bmi.data %>%
+  mutate(
+    bmi.category = cut(bmi, c(0, 18.5, 25, 30, Inf), include.lowest = TRUE, right = FALSE)
+  ) %>%
+  group_by(participant.id) %>%
+  mutate(
+    next.bmi.category = lead(bmi.category, order_by = wave)
+  ) %>%
+  ungroup() %>%
+  filter(!is.na(next.bmi.category)) %>%
+  count(source, bmi.category, next.bmi.category) %>%
+  group_by(source, bmi.category) %>%
+  mutate(
+    type = "Observed",
+    transition.probability = n / sum(n),
+    transition.probability.se = sqrt(n / sum(n) * (1 - n / sum(n)) / sum(n)),
+    transition.probability.025 = pmax(0, transition.probability + qnorm(0.025) * transition.probability.se),
+    transition.probability.975 = pmin(1, transition.probability + qnorm(0.975) * transition.probability.se)
+  ) %>%
+  ungroup()
+observed.transitions
+```
+
+As seen in [figure (10)](#fig:Transition-Matrices), the model approaches the observed transition rates between the four BMI categories, but overestimates the fluctuations which occur for higher BMI values. This indicates that not all aspects of the life course trajectories are being reproduced but that a large part of the relevant dynamics is indeed captured by our model. The differences seen between Doetinchem and LISS are mostly due to the different time intervals between measurements, where Doetinchem was recorded about every 5 years and LISS approximately every year.
+
+<a id="fig:Transition-Matrices"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = bmi.category,
+    y = next.bmi.category,
+    fill = transition.probability,
+    label = ifelse(type == "Model", sprintf("%.2f", transition.probability), sprintf("%.2f-%.2f", transition.probability.025, transition.probability.975))
+  ),
+  data = observed.transitions %>%
+    bind_rows(model.transitions)
+) +
+  geom_tile(alpha = 0.7) +
+  geom_text() +
+  scale_fill_viridis_c(trans = "sqrt") +
+  scale_x_discrete(
+    labels = c(expression(BMI < 18.5), expression(18.5 <= {BMI < 25}), expression(25 <= {BMI < 30}), expression(30 <= BMI))
+  ) +
+  scale_y_discrete(
+    labels = c(expression(BMI < 18.5), expression(18.5 <= {BMI < 25}), expression(25 <= {BMI < 30}), expression(30 <= BMI))
+  ) +
+  guides(fill = "none") +
+  labs(
+    x = "Current BMI",
+    y = "Next BMI"
+  ) +
+  facet_grid(
+    rows = vars(type),
+    cols = vars(source)
+  )
+```
+<center>Figure 10</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Transition Matrices.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+## Standard Deviation
+
+[Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals whose BMI changes drastically over time, whereas [figure (10)](#fig:Transition-Matrices) suggests that our model overestimates the transitions which occur. Clearly, the amount by which the values within the observed trajectories fluctuate differ with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [Figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by sampling several new trajectories for each individual.
+
+```{r}
+model.standard.deviation <- longitudinal.bmi.data %>%
+  left_join(
+    bmi.trajectory.parameters,
+    by = "sex"
+  ) %>%
+  group_by(source, participant.id) %>%
+  filter(n() > 1) %>%
+  reframe(
+    type = "Model",
+    sample.id = seq(20),
+    sd = generate.generalised.autoregressive.values(
+      n = 20,
+      times = time,
+      sd.random.intercept = sd.random.intercept,
+      temporal.correlation = temporal.correlation,
+      sd.shock = sd.shock,
+      sd.uncorrelated.error = sd.uncorrelated.error
+    ) %>%
+      apply(1, sd)
+  )
+head(model.standard.deviation)
+```
+[Figure (11)](#fig:Standard-Deviation) shows the resulting distributions of the standard deviation, which shows a discrepancy between the observation and the prediction. In part due to the fact that we have combined that Doetinchem and LISS datasets and created a model which . Additionally, we modelled the mean but discarded these coefficients. And, finally, we normalised our coefficients such that they produced z-scores with unit standard deviation. 
+
+
+
+ the fact that the BMI values in LISS are self-reported, which often results in unrealistically stable values. We note this as a limitation for future concern.
+
+Such outlying transitions are not captured by our model, but this need not be a problem as long as it captures the majority of the heterogeneity in the trajectories. Most government policy is aimed at typical individuals with typical trajectories, such as those in our model.
+
+Individuals with the same sex, level of education and age can still have vastly different trajectories of BMI. Such heterogeneity is the result of various stochastic elements which determine a life course and our model needs to be able to capture this. It may even be possible to identify subgroups with fundamentally different behaviour. For example, it has been suggested that fussy eaters follow different BMI trajectories from people who are less choosy [@Herle2020]. This leads to growth mixture models where each subgroup's behaviour is determined by a separate model. However, we will assume all individual life course trajectories can be captured by the same mechanism, where three stochastic elements form the source of individual variations.
+
+<a id="fig:Standard-Deviation"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = sd,
+    col = type
+  ),
+  data = correlation.between.mean.bmi.and.its.sd %>%
+    filter(name == "zscore") %>%
+    mutate(type = "Observed") %>%
+    bind_rows(model.standard.deviation) %>%
+    filter(sd < 1.1)
+) +
+  geom_density() +
+  stat_summary(
+    mapping = aes(
+      xintercept = after_stat(x),
+      y = 0
+    ),
+    fun = mean,
+    geom = "vline",
+    orientation = "y",
+    linetype = "dashed"
+  )+
+  labs(
+    x = "Standard deviation",
+    y = "Probability density",
+    col = "Type"
+  ) +
+  facet_wrap(~ source)
+```
+<center>Figure 11</center>
+
+# Write Parameters
+
+Finally, we write the parameters of our trajectories to a CSV file.
+
+```{r}
+write_csv(
+  bmi.trajectory.parameters,
+  "Individual Trajectories of BMI.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

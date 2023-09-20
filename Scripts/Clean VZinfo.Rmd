@@ -1,0 +1,889 @@
+---
+title: "Clean VZinfo BMI Data"
+author: "Laurens Bogaardt"
+date: "2023-02-01"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+link-citations: yes
+---
+
+# Introduction
+
+Before we begin, we will need to load some packages.
+[@tidyverse2019].
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+```
+
+# Data
+
+[Placeholder for Text]
+
+## Geslacht Trend Kinderen met Obesitas
+
+[Placeholder for Text]
+
+```{r}
+geslacht.trend.kinderen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/geslacht-trend-kinderen-met-obesi.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "jongens gestand.*" = col_double(),
+    "meisjes gestand.*" = col_double(),
+    "jongens ongestand." = col_double(),
+    "meisjes ongestand." = col_double()
+  )
+)
+geslacht.trend.kinderen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Geslacht Trend Kinderen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+geslacht.trend.kinderen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/geslacht-trend-kinderen-met-overg.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "jongens gestand.*" = col_double(),
+    "meisjes gestand.*" = col_double(),
+    "jongens ongestand." = col_double(),
+    "meisjes ongestand." = col_double()
+  )
+)
+geslacht.trend.kinderen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Geslacht Trend Volwassenen met Obesitas
+
+[Placeholder for Text]
+
+```{r}
+geslacht.trend.volwassenen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/geslacht-trend-volwassenen-met-ob.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "mannen gestand.*" = col_double(),
+    "vrouwen gestand.*" = col_double(),
+    "mannen ongestand." = col_double(),
+    "vrouwen ongestand." = col_double()
+  )
+)
+geslacht.trend.volwassenen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Geslacht Trend Volwassenen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+geslacht.trend.volwassenen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/geslacht-trend-volwassenen-met-ov.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "mannen gestand.*" = col_double(),
+    "vrouwen gestand.*" = col_double(),
+    "mannen ongestand." = col_double(),
+    "vrouwen ongestand." = col_double()
+  )
+)
+geslacht.trend.volwassenen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Leeftijd Trend Kinderen met Obesitas
+
+[Placeholder for Text]
+
+```{r}
+leeftijd.trend.kinderen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/leeftijd-trend-kinderen-met-obesi.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "4-11 jaar gestand.*" = col_double(),
+    "12-17 jaar gestand.*" = col_double(),
+    "4-11 jaar ongestand." = col_double(),
+    "12-17 jaar ongestand." = col_double()
+  )
+)
+leeftijd.trend.kinderen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Leeftijd Trend Kinderen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+leeftijd.trend.kinderen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/leeftijd-trend-kinderen-met-overg.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "4-11 jaar gestand.*" = col_double(),
+    "12-17 jaar gestand.*" = col_double(),
+    "4-11 jaar ongestand." = col_double(),
+    "12-17 jaar ongestand." = col_double()
+  )
+)
+leeftijd.trend.kinderen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Leeftijd Trend Volwassenen met Obesitas
+
+[Placeholder for Text]
+
+```{r}
+leeftijd.trend.volwassenen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/leeftijd-trend-volwassenen-met-ob.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "18-34 gestand.*" = col_double(),
+    "35-49 gestand.*" = col_double(),
+    "50-64 gestand.*" = col_double(),
+    "65+ gestand.*" = col_double(),
+    "18-34 ongestand." = col_double(),
+    "35-49 ongestand." = col_double(),
+    "50-64 ongestand." = col_double(),
+    "65+ ongestand." = col_double()
+  )
+)
+leeftijd.trend.volwassenen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Leeftijd Trend Volwassenen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+leeftijd.trend.volwassenen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/leeftijd-trend-volwassenen-met-ov.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "18-34 gestand.*" = col_double(),
+    "35-49 gestand.*" = col_double(),
+    "50-64 gestand.*" = col_double(),
+    "65+ gestand.*" = col_double(),
+    "18-34 ongestand." = col_double(),
+    "35-49 ongestand." = col_double(),
+    "50-64 ongestand." = col_double(),
+    "65+ ongestand." = col_double()
+  )
+)
+leeftijd.trend.volwassenen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Opleiding Trend Volwassenen met Obesitas
+
+[Placeholder for Text]
+
+```{r}
+opleiding.trend.volwassenen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/opleiding-trend-in-obesitas-naar-o.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "Laag" = col_double(),
+    "Middelbaar" = col_double(),
+    "Hoog" = col_double()
+  )
+)
+opleiding.trend.volwassenen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Opleiding Trend Volwassenen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+opleiding.trend.volwassenen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/opleiding-trend-in-overgewicht-naa.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "Laag" = col_double(),
+    "Middelbaar" = col_double(),
+    "Hoog" = col_double()
+  )
+)
+opleiding.trend.volwassenen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Opleiding Geslacht Obesitas
+
+[Placeholder for Text]
+
+```{r}
+opleiding.geslacht.volwassenen.met.obesitas <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/opleiding-obesitas-naar-geslacht-l.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_factor(),
+    "Laag" = col_double(),
+    "Middelbaar" = col_double(),
+    "Hoog" = col_double()
+  )
+)
+opleiding.geslacht.volwassenen.met.obesitas
+```
+
+[Placeholder for Text]
+
+## Opleiding Geslacht Volwassenen met Overgewicht
+
+[Placeholder for Text]
+
+```{r}
+opleiding.geslacht.volwassenen.met.overgewicht <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/opleiding-overgewicht-naar-geslach.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_factor(),
+    "Laag" = col_double(),
+    "Middelbaar" = col_double(),
+    "Hoog" = col_double()
+  )
+)
+opleiding.geslacht.volwassenen.met.overgewicht
+```
+
+[Placeholder for Text]
+
+## Geslacht Leeftijd Volwassenen
+
+[Placeholder for Text]
+
+```{r}
+geslacht.leeftijd.volwassenen <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/leeftijd-volwassenen-met-overgewi.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_factor(),
+    "Matig overgewicht" = col_double(),
+    "Ernstig overgewicht" = col_double()
+  )
+)
+geslacht.leeftijd.volwassenen
+```
+
+[Placeholder for Text]
+
+## Geslacht Leeftijd Kinderen
+
+[Placeholder for Text]
+
+```{r}
+geslacht.leeftijd.kinderen <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/kinderen-met-overgewicht.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_factor(),
+    "Matig overgewicht" = col_double(),
+    "Ernstig overgewicht" = col_double()
+  )
+)
+geslacht.leeftijd.kinderen
+```
+
+[Placeholder for Text]
+
+## Geslacht en Leeftijd Volwassenen
+
+[Placeholder for Text]
+
+```{r}
+geslacht.en.leeftijd.volwassenen <- read_delim(
+  file = "../../../2. Data Ruw/VZinfo/BMI/volwassenen-met-overgewi.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Geslacht en leeftijd" = col_factor(),
+    "Matig overgewicht" = col_double(),
+    "Ernstig overgewicht" = col_double()
+  )
+)
+geslacht.en.leeftijd.volwassenen
+```
+
+[Placeholder for Text]
+
+# Clean
+
+[Placeholder for Text]
+
+## BMI by Sex
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.sex <- geslacht.en.leeftijd.volwassenen %>%
+  filter(
+    grepl("Mannen|Vrouwen", `Geslacht en leeftijd`)
+  ) %>%
+  pivot_longer(
+    cols = !`Geslacht en leeftijd`,
+    names_to = "bmi_lower",
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    sex = recode_factor(
+      substr(`Geslacht en leeftijd`, 1, 1),
+      "M" = 0,
+      "V" = 1
+    ),
+    bmi_lower = recode(
+      bmi_lower,
+      "Matig overgewicht" = 25,
+      "Ernstig overgewicht" = 30
+    ),
+    bmi_upper = recode(
+      bmi_lower,
+      `25` = 30,
+      `30` = Inf
+    ),
+    prevalence = as.numeric(prevalence) / 100
+  ) %>%
+  select(sex, bmi_lower, bmi_upper, prevalence) %>%
+  arrange(sex, bmi_lower, bmi_upper, prevalence)
+bmi.by.sex
+```
+
+[Placeholder for Text]
+
+## BMI by Age
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.age <- geslacht.en.leeftijd.volwassenen %>%
+  filter(
+    grepl("\\d", `Geslacht en leeftijd`)
+  ) %>%
+  pivot_longer(
+    cols = !`Geslacht en leeftijd`,
+    names_to = "bmi_lower",
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    age_lower = recode(
+      gsub(".*?: (.*)", "\\1", `Geslacht en leeftijd`),
+      "18-34" = 25,
+      "35-49" = 35,
+      "50-64" = 50,
+      "65+" = 65
+    ),
+    age_upper = recode(
+      age_lower,
+      `25` = 35,
+      `35` = 50,
+      `45` = 65,
+      `65` = Inf
+    ),
+    bmi_lower = recode(
+      bmi_lower,
+      "Matig overgewicht" = 25,
+      "Ernstig overgewicht" = 30
+    ),
+    bmi_upper = recode(
+      bmi_lower,
+      `25` = 30,
+      `30` = Inf
+    ),
+    prevalence = as.numeric(prevalence) / 100
+  ) %>%
+  select(age_lower, age_upper, bmi_lower, bmi_upper, prevalence) %>%
+  arrange(age_lower, age_upper, bmi_lower, bmi_upper, prevalence)
+bmi.by.age
+```
+
+[Placeholder for Text]
+
+## BMI by Year and Age
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.year.and.age <- leeftijd.trend.kinderen.met.overgewicht %>%
+  pivot_longer(
+    cols = !Category,
+    names_pattern = "(.*) (.*)",
+    names_to = c("age_lower", "standardised"),
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    bmi_lower = 25,
+    bmi_upper = 30
+  ) %>%
+  bind_rows(
+    leeftijd.trend.kinderen.met.obesitas %>%
+      pivot_longer(
+        cols = !Category,
+        names_pattern = "(.*) (.*)",
+        names_to = c("age_lower", "standardised"),
+        values_to = "prevalence"
+      ) %>%
+      mutate(
+        bmi_lower = 30,
+        bmi_upper = Inf
+      )
+  ) %>%
+  bind_rows(
+    leeftijd.trend.volwassenen.met.overgewicht %>%
+      pivot_longer(
+        cols = !Category,
+        names_pattern = "(.*) (.*)",
+        names_to = c("age_lower", "standardised"),
+        values_to = "prevalence"
+      ) %>%
+      mutate(
+        bmi_lower = 25,
+        bmi_upper = 30
+      ) %>%
+      bind_rows(
+        leeftijd.trend.volwassenen.met.obesitas %>%
+          pivot_longer(
+            cols = !Category,
+            names_pattern = "(.*) (.*)",
+            names_to = c("age_lower", "standardised"),
+            values_to = "prevalence"
+          ) %>%
+          mutate(
+            bmi_lower = 30,
+            bmi_upper = Inf
+          )
+      )
+  ) %>%
+  mutate(
+    date = as.Date(paste0(Category, "-01-01")),
+    age_lower = recode(
+      age_lower,
+      "4-11 jaar" = 4,
+      "12-17 jaar" = 12,
+      "18-34" = 18,
+      "35-49" = 35,
+      "50-64" = 50,
+      "65+" = 65
+    ),
+    age_upper = recode(
+      age_lower,
+      `4` = 12,
+      `12` = 18,
+      `18` = 35,
+      `35` = 50,
+      `50` = 65,
+      `65` = Inf
+    ),
+    standardised = recode_factor(
+      standardised,
+      "ongestand." = 0,
+      "gestand.*" = 1
+    ),
+    prevalence = as.numeric(prevalence) / 100
+  ) %>%
+  select(date, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence) %>%
+  arrange(date, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence)
+bmi.by.year.and.age
+```
+
+[Placeholder for Text]
+
+## BMI by Year and Education
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.year.and.education <- opleiding.trend.volwassenen.met.overgewicht %>%
+  pivot_longer(
+    cols = !Category,
+    names_to = "education",
+    values_to = "25"
+  ) %>%
+  full_join(
+    opleiding.trend.volwassenen.met.obesitas %>%
+      pivot_longer(
+        cols = !Category,
+    names_to = "education",
+        values_to = "30"
+      ),
+    by = c("Category", "education")
+  ) %>%
+  mutate(
+    date = as.Date(paste0(Category, "-01-01")),
+    education = recode_factor(
+      education,
+      "Laag" = 1,
+      "Middelbaar" = 2,
+      "Hoog" = 3
+    ),
+    `30` = as.numeric(`30`) / 100,
+    `25` = as.numeric(`25`) / 100 - `30`
+  ) %>%
+  pivot_longer(
+    cols = c(`25`, `30`),
+    names_to = "bmi_lower",
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    bmi_upper = case_when(
+      bmi_lower == 25 ~ 30,
+      TRUE ~ Inf
+    )
+  ) %>%
+  select(date, education, bmi_lower, bmi_upper, prevalence) %>%
+  arrange(date, education, bmi_lower, bmi_upper, prevalence)
+bmi.by.year.and.education
+```
+
+[Placeholder for Text]
+
+## BMI by Sex and Age
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.sex.and.age <- geslacht.leeftijd.kinderen %>%
+  filter(
+    !grepl("Totaal", Category),
+    !grepl("4-17", Category)
+  ) %>%
+  pivot_longer(
+    cols = !Category,
+    names_to = "bmi_lower",
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    sex = recode_factor(
+      substr(Category, 1, 1),
+      "J" = 0,
+      "M" = 1
+    )
+  ) %>%
+  bind_rows(
+    geslacht.leeftijd.volwassenen %>%
+      pivot_longer(
+        cols = !Category,
+        names_to = "bmi_lower",
+        values_to = "prevalence"
+      ) %>%
+      mutate(
+        sex = recode_factor(
+          substr(Category, 1, 1),
+          "V" = 0,
+          "M" = 1
+        )
+      )
+  ) %>%
+  mutate(
+    age_lower = recode(
+      gsub(".*?: (.*)", "\\1", Category),
+      "4-11 jaar" = 4,
+      "12-17 jaar" = 12,
+      "18-34 jaar" = 18,
+      "35-49 jaar" = 35,
+      "50-64 jaar" = 50,
+      "65+ jaar" = 65
+    ),
+    age_upper = recode(
+      age_lower,
+      `4` = 12,
+      `18` = 18,
+      `25` = 35,
+      `35` = 50,
+      `45` = 65,
+      `65` = Inf
+    ),
+    bmi_lower = recode(
+      bmi_lower,
+      "Matig overgewicht" = 25,
+      "Ernstig overgewicht" = 30
+    ),
+    bmi_upper = recode(
+      bmi_lower,
+      `25` = 30,
+      `30` = Inf
+    ),
+    prevalence = as.numeric(prevalence) / 100
+  ) %>%
+  select(sex, age_lower, age_upper, bmi_lower, bmi_upper, prevalence) %>%
+  arrange(sex, age_lower, age_upper, bmi_lower, bmi_upper, prevalence)
+bmi.by.sex.and.age
+```
+
+[Placeholder for Text]
+
+## BMI by Year, Sex and Age
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.year.sex.and.age <- geslacht.trend.kinderen.met.overgewicht %>%
+  pivot_longer(
+    cols = !Category,
+    names_pattern = "(.*) (.*)",
+    names_to = c("sex", "standardised"),
+    values_to = "prevalence_25"
+  ) %>%
+  full_join(
+    geslacht.trend.kinderen.met.obesitas %>%
+      pivot_longer(
+        cols = !Category,
+        names_pattern = "(.*) (.*)",
+        names_to = c("sex", "standardised"),
+        values_to = "prevalence_30"
+      ),
+    by = c("Category", "sex", "standardised")
+  ) %>%
+  mutate(
+    sex = recode_factor(
+      sex,
+      "jongens" = 0,
+      "meisjes" = 1
+    ),
+    age_lower = 4,
+    age_upper = 18
+  ) %>%
+  bind_rows(
+    geslacht.trend.volwassenen.met.overgewicht %>%
+      pivot_longer(
+        cols = !Category,
+        names_pattern = "(.*) (.*)",
+        names_to = c("sex", "standardised"),
+        values_to = "prevalence_25"
+      ) %>%
+      full_join(
+        geslacht.trend.volwassenen.met.obesitas %>%
+          pivot_longer(
+            cols = !Category,
+            names_pattern = "(.*) (.*)",
+            names_to = c("sex", "standardised"),
+            values_to = "prevalence_30"
+          ),
+        by = c("Category", "sex", "standardised")
+      ) %>%
+      mutate(
+        sex = recode_factor(
+          sex,
+          "mannen" = 0,
+          "vrouwen" = 1
+        ),
+        age_lower = 18,
+        age_upper = Inf
+      ),
+  ) %>%
+  mutate(
+    date = as.Date(paste0(Category, "-01-01")),
+    standardised = recode_factor(
+      standardised,
+      "ongestand." = 0,
+      "gestand.*" = 1
+    ),
+    prevalence_25 = prevalence_25 - prevalence_30
+  ) %>%
+  pivot_longer(
+    cols = c(prevalence_25, prevalence_30),
+    names_pattern = "prevalence_(.*)",
+    names_to = "bmi_lower",
+    values_to = "prevalence",
+    names_transform = list(bmi_lower = as.numeric)
+  ) %>%
+  mutate(
+    bmi_upper = ifelse(bmi_lower == 25, 30, Inf),
+    prevalence = prevalence / 100
+  ) %>%
+  select(date, sex, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence) %>%
+  arrange(date, sex, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence)
+bmi.by.year.sex.and.age
+```
+
+[Placeholder for Text]
+
+## BMI by Sex, Education and Age
+
+[Placeholder for Text]
+
+```{r}
+bmi.by.sex.education.and.age <- opleiding.geslacht.volwassenen.met.overgewicht %>%
+  pivot_longer(
+    cols = !Category,
+    names_to = "education",
+    values_to = "prevalence"
+  ) %>%
+  mutate(
+    bmi_lower = 25,
+    bmi_upper = 30
+  ) %>%
+  bind_rows(
+    opleiding.geslacht.volwassenen.met.obesitas %>%
+      pivot_longer(
+        cols = !Category,
+        names_to = "education",
+        values_to = "prevalence"
+      ) %>%
+      mutate(
+        bmi_lower = 30,
+        bmi_upper = Inf
+      )
+  ) %>%
+  mutate(
+    sex = recode_factor(
+      substr(Category, 1, 1),
+      "M" = 0,
+      "V" = 1
+    ),
+    education = recode_factor(
+      education,
+      "Laag" = 1,
+      "Middelbaar" = 2,
+      "Hoog" = 3
+    ),
+    age_lower = recode(
+      gsub(".*: (.*)", "\\1", Category),
+      "25-44" = 25,
+      "45-64" = 45,
+      "65+" = 65
+    ),
+    age_upper = recode(
+      age_lower,
+      `25` = 45,
+      `45` = 65,
+      `65` = Inf
+    ),
+    prevalence = as.numeric(prevalence) / 100
+  ) %>%
+  select(sex, education, age_lower, age_upper, bmi_lower, bmi_upper, prevalence) %>%
+  arrange(sex, education, age_lower, age_upper, bmi_lower, bmi_upper, prevalence)
+bmi.by.sex.education.and.age
+```
+
+[Placeholder for Text]
+
+# Write Output
+
+[Placeholder for Text]
+
+## BMI by Sex
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.sex,
+  file = "BMI by Sex.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Age
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.age,
+  file = "BMI by Age.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Year and Age
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.year.and.age,
+  file = "BMI by Year and Age.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Year and Education
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.year.and.education,
+  file = "BMI by Year and Education.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Sex and Age
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.sex.and.age,
+  file = "BMI by Sex and Age.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Year, Sex and Age
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.year.sex.and.age,
+  file = "BMI by Year, Sex and Age.csv"
+)
+```
+
+[Placeholder for Text]
+
+## BMI by Sex, Education and Age
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.sex.education.and.age,
+  file = "BMI by Sex, Education and Age.csv"
+)
+```
+
+[Placeholder for Text]
+

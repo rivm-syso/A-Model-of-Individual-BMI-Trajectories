@@ -1,0 +1,1396 @@
+---
+title: "Clean and Explore LISS Health Data"
+author: "Laurens Bogaardt & Katalin Katona"
+date: "2023-02-01"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+link-citations: yes
+---
+
+```{r include = FALSE}
+# TODO: Load more background data to fix missingness.
+```
+
+# Introduction
+
+The Longitudinal Internet studies for the Social Sciences (LISS) panel is a representative sample of Dutch individuals who participate in monthly Internet surveys [@Scherpenzeel2010]. The panel is based on a true probability sample of households drawn from the population register. Households that could not otherwise participate are provided with a computer and Internet connection. A longitudinal survey is fielded in the panel every year, covering a large variety of domains including health, work, education, income, housing, time use, political views, values and personality.
+
+In this document, we will clean the data of the LISS panel.
+
+Throughout the document, we will limit the output in each step. This is because the LISS data is not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+
+The LISS data consists of separate questionnaires about various topic. In this document, we will examine the background questionnaires and the health questionnaires. First, we will need to load some packages.[@tidyverse2019; @vtable2021]. 
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+library(ggforce)
+library(vtable)
+```
+
+# Load Background Data
+
+Now, we can load the background datasets. These contain general information, such as sex and age, about the participants in the study. The following lists the names of the files which we will load.
+
+```{r}
+background.data.file.names <- c(
+  "avars_200711_EN_3.0p.sav",
+  "avars_200802_EN_3.0p.sav",
+  "avars_200811_EN_2.0p.sav",
+  "avars_200812_EN_2.0p.sav",
+  "avars_200911_EN_2.0p.sav",
+  "avars_200912_EN_2.0p.sav",
+  "avars_201011_EN_2.0p.sav",
+  "avars_201012_EN_2.0p.sav",
+  "avars_201111_EN_2.0p.sav",
+  "avars_201112_EN_2.0p.sav",
+  "avars_201211_EN_1.0p.sav",
+  "avars_201212_EN_1.0p.sav",
+  "avars_201311_EN_1.0p.sav",
+  "avars_201312_EN_1.0p.sav",
+  "avars_201507_EN_1.0p.sav",
+  "avars_201508_EN_1.0p.sav",
+  "avars_201611_EN_1.0p.sav",
+  "avars_201612_EN_1.0p.sav",
+  "avars_201711_EN_1.0p.sav",
+  "avars_201712_EN_1.0p.sav",
+  "avars_201811_EN_1.0p.sav",
+  "avars_201812_EN_1.0p.sav",
+  "avars_201911_EN_1.0p.sav",
+  "avars_201912_EN_1.0p.sav",
+  "avars_202011_EN_1.0p.sav",
+  "avars_202012_EN_1.0p.sav",
+  "avars_202111_EN_1.0p.sav",
+  "avars_202112_EN_1.1p.sav"
+)
+```
+
+We can now loop over this list to read the data, extracting only the relevant columns.
+
+```{r}
+background.data <- map(
+  .x = background.data.file.names,
+  .f = ~ read_sav(
+    file = paste0("../../2. Data Ruw/LISS/Background [CONFIDENTIAL]/", .),
+    col_select = c("nomem_encr", "wave", "geslacht", "gebjaar", "oplcat", "leeftijd")
+  ) %>%
+    zap_labels() %>%
+    rename(
+      participant.id = "nomem_encr",
+      sex = "geslacht",
+      education = "oplcat",
+      year.of.birth = "gebjaar",
+      age = "leeftijd"
+    )
+) %>%
+  bind_rows() %>%
+  arrange(participant.id, wave)
+vtable(background.data, out = "return", missing = TRUE)
+```
+
+# Load Health Data
+
+Participants also filled in health questionnaires which includes information about their length and weight, their smoking habits and their alcohol consumption. The following lists the names of the files we will load.
+
+```{r}
+health.data.file.names <- c(
+  "ch07a_2p_EN.sav",
+  "ch08b_EN_1.3p.sav",
+  "ch09c_EN_1.1p.sav",
+  "ch10d_EN_1.0p.sav",
+  "ch11e_EN_1.0p.sav",
+  "ch12f_EN_1.0p.sav",
+  "ch13g_EN_1.0p.sav",
+  "ch15h_EN_1.2p.sav",
+  "ch16i_EN_1.0p.sav",
+  "ch17j_EN_1.0p.sav",
+  "ch18k_EN_1.0p.sav",
+  "ch19l_EN_1.0p.sav",
+  "ch20m_EN_1.0p.sav",
+  "ch21n_EN_1.0p.sav"
+)
+```
+
+We can loop over this list to read the data, extracting only the columns we are interested in.
+
+```{r}
+health.data <- map(
+  .x = health.data.file.names,
+  .f = ~ read_sav(
+    file = paste0("../../2. Data Ruw/LISS/Health [CONFIDENTIAL]/", .),
+    col_select = ends_with(
+      c(
+        "nomem_encr",
+        "_m",
+        "016",
+        "017",
+        "125",
+        "126",
+        "133",
+        "134",
+        "135",
+        "185",
+        "186",
+        "187",
+        "188",
+        "189",
+        "190",
+        "191",
+        "192",
+        "193"
+      )
+    )
+  ) %>%
+    zap_labels() %>%
+    rename(
+      participant.id = "nomem_encr",
+      wave = ends_with("_m"),
+      length = ends_with("016"),
+      weight = ends_with("017"),
+      ever_smoked = ends_with("125"),
+      smokes_now = ends_with("126"),
+      n_drinks = ends_with("133"),
+      drink_7days = ends_with("134"),
+      n_drinks_7days = ends_with("135"),
+      str_7days = ends_with("185"),
+      hrs_str = ends_with("186"),
+      min_str = ends_with("187"),
+      mod_7days = ends_with("188"),
+      hrs_mod = ends_with("189"),
+      min_mod = ends_with("190"),
+      walk_7days = ends_with("191"),
+      hrs_walk = ends_with("192"),
+      min_walk = ends_with("193")
+    )
+) %>%
+  bind_rows() %>%
+  arrange(participant.id, wave)
+vtable(health.data, out = "return", missing = TRUE)
+```
+
+# Clean Background Data
+
+In this section, we will explore a few aspects of the background dataset. We will find that it contains some missing data and some data which is unusual. Before we fix these issues, let's first filter the data on the participants we actually care about, namely those who also filled in the health questionnaires.
+
+```{r}
+background.data <- background.data %>%
+  inner_join(
+    health.data %>%
+      distinct(participant.id),
+    by = c("participant.id")
+  )
+vtable(background.data, out = "return", missing = TRUE)
+```
+
+## Waves
+
+Let's check if the _wave_ is missing for any row in the dataset.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(wave)))
+```
+
+Each participant should only have one entry per wave. Let's check this.
+
+```{r}
+background.data %>%
+  count(participant.id, wave) %>%
+  summarise(duplicate = sum(n > 1))
+```
+
+## Sex
+
+Let's verify that there are only 2 sexes. We can immediately check if there are any missing values.
+
+```{r}
+background.data %>%
+  count(sex)
+```
+
+For our purpose, we want males encoded as a zero and females as a one. Let's change this.
+
+```{r}
+background.data <- background.data %>%
+  mutate(sex = sex - 1)
+```
+
+Each participant should only have one value for _sex_ across all waves. Let's count how many times this goes wrong.
+
+```{r}
+background.data %>%
+  filter(!is.na(sex)) %>%
+  distinct(participant.id, sex) %>%
+  count(participant.id) %>%
+  summarise(nonunique = sum(n > 1))
+```
+
+It is possible that some of these data result from multiple people using the same _participant.id_. In that case, it is likely their _year.of.birth_ has also changed. Let's examine this first.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(sex, na.rm = TRUE) > 1, n_distinct(year.of.birth, na.rm = TRUE) > 1) %>%
+  ungroup() %>%
+  select(participant.id, wave, sex, year.of.birth)
+```
+
+Let's remove this participant from the data.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(!(n_distinct(sex, na.rm = TRUE) > 1 & n_distinct(year.of.birth, na.rm = TRUE) > 1)) %>%
+  ungroup()
+```
+
+For the remaining dataset, let's examine the participants who have changing sexes.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(sex, na.rm = TRUE) > 1) %>%
+  ungroup() %>%
+  select(participant.id, wave, sex)
+```
+
+The participants usually have one sex which dominates the waves. For these, let's stick with the most commonly chosen sex.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  mutate(sex = as.numeric(names(which.max(table(sex))))) %>%
+  ungroup()
+```
+
+Let's verify that there are no more missing values for the column _sex_.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(sex)))
+```
+
+## Education
+
+Let's verify that there are only 6 education levels. We can immediately check if there are any missing values.
+
+```{r}
+background.data %>%
+  count(education)
+```
+
+Each participant should only have one education level across all waves. Let's count how many times this goes wrong.
+
+```{r}
+background.data %>%
+  filter(!is.na(education)) %>%
+  distinct(participant.id, education) %>%
+  count(participant.id) %>%
+  summarise(nonunique = sum(n > 1))
+```
+
+These are quite many and we cannot easily fix all these cases with a simple rule. It's likely that many participants increase their education level as they age. When the opposite occurs, something must be wrong. Let's examine how many participants do not weakly increase in education level over time.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  filter(is.unsorted(education, na.rm = TRUE)) %>%
+  ungroup() %>%
+  summarise(unsorted = n_distinct(participant.id))
+```
+
+This, too, is quite a large number, meaning it is hard to come up with personalised rules to impute the data. Let's opt for a simple rule, namely choosing the level of education which occurs most frequently.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  mutate(education = ifelse(all(is.na(education)), NA, as.numeric(names(which.max(table(education)))))) %>%
+  ungroup()
+```
+
+Let's check if there are still participants who have missing values in the column _education_ for all waves.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  summarise(missing = all(is.na(education)), .groups = "drop") %>%
+  summarise(missing = sum(missing))
+```
+
+Unfortunately, we are forced to remove these participants completely.
+
+```{r}
+background.data <- background.data %>%
+  filter(!is.na(education))
+```
+
+The six levels of education are:
+
+1. primary school
+2. vmbo (intermediate secondary education, US: junior high school)
+3. havo/vwo (higher secondary education/preparatory university education, US: senior high school)
+4. mbo (intermediate vocational education, US: junior college)
+5. hbo (higher vocational education, US: college)
+6. wo (university)
+
+For our purpose, we are interested in the education level of the participant grouped in three distinct categories. We will, therefore, pair up levels to arrive at the following categorisation:
+
+1. primary school or vmbo
+2. havo/vwo or mbo
+3. hbo or wo
+
+```{r}
+background.data <- background.data %>%
+  mutate(education = ceiling(education / 2))
+```
+
+## Year of Birth
+
+Let's check if there are any participants who are missing their year of birth.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(year.of.birth)))
+```
+
+Each participant should only have one year of birth across all waves. Let's count how many times this goes wrong.
+
+```{r}
+background.data %>%
+  distinct(participant.id, year.of.birth) %>%
+  count(participant.id) %>%
+  summarise(nonunique = sum(n > 1))
+```
+
+Let's examine the participants who have a varying year of birth.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(year.of.birth, na.rm = TRUE) > 1) %>%
+  ungroup() %>%
+  select(participant.id, wave, year.of.birth, age)
+```
+
+For some, it is likely just a typo (e.g. 1976 versus 1967), but for others, the cause is less obvious. Although it is a drastic solution, it seems best to remove all participants with an ambiguous year of birth.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(year.of.birth, na.rm = TRUE) == 1) %>%
+  ungroup()
+```
+
+In the LISS data, the age of the participants is given in years, rounded down to the nearest year. In principle, age is a continuous variable measuring the time since the date of birth. For our purpose, we require such a continuous variable. However, this information is not present in the data and only the year of birth is given. We can easily make up a date of birth by sampling a day from the year of birth. This may not be completely accurate but it will serve our purpose.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  mutate(date.of.birth = sample(seq(as.Date(paste0(first(year.of.birth), "-01-01")), as.Date(paste0(first(year.of.birth), "-12-31")), by = "day"), 1)) %>%
+  ungroup()
+vtable(background.data, out = "return", missing = TRUE)
+```
+
+## Age
+
+Let's check if there are any participants who are missing their age.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(age)))
+```
+
+The year of birth and the age of the participant are related and should match. Given that we do not know the precise date of birth of each participant, a mismatch of up to one year should be expected. Although this mismatch is indeed higher, it is not a substantial difference.
+
+```{r}
+background.data %>%
+  summarise(maximum.mismatch = max(abs(year.of.birth + age - wave / 100)))
+```
+
+## Time Invariant Data
+
+The LISS panel provides background data for each wave. However, background data usually only contains time invariant information. So it is not necessary to keep duplicates of this information in each wave. In fact, to do so would cause problems later on, when combining the background data with the health data. For example, any participant who filled in the health questionnaire on some waves, but by accident misses their background data for those particular waves, would end up with all background information missing from the combined dataset.
+
+As such, it is better to reduce the background dataset to the necessary, time invariant columns and remove all duplicate waves.
+
+```{r}
+background.time.invariant.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(wave == min(wave)) %>%
+  ungroup() %>%
+  select(participant.id, sex, education, date.of.birth)
+vtable(background.time.invariant.data, out = "return", missing = TRUE)
+```
+
+# Combine with Health Data
+
+The background questionnaires and the health questionnaires were loaded as separate datasets. We need to combine these and add a few more columns.
+
+## Join Datasets
+
+Let's join the two datasets on the _participant.id_. Note that we are using an inner join. This will automatically remove participants in our health data for whom we do not have any background information.
+
+```{r}
+combined.data <- background.time.invariant.data %>%
+  inner_join(
+    health.data,
+    by = c("participant.id")
+  ) %>%
+  arrange(participant.id, wave)
+vtable(combined.data, out = "return", missing = TRUE)
+```
+
+## Waves
+
+The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place, by assuming all waves were administered on the 15th of the month. We can also add a variable indicating the year to which the wave belongs.
+
+```{r}
+combined.data <- combined.data %>%
+  mutate(
+    date = as.Date(paste0(substr(wave, 1, 4), "-", substr(wave, 5, 6), "-15")),
+    wave.year = floor(wave / 100)
+  ) %>%
+  relocate(date, wave.year, .after = wave)
+```
+
+As seen in the table below, participants mostly filled in one health questionnaire per year. The exception is 2008.
+
+```{r}
+combined.data %>%
+  count(wave.year, participant.id) %>%
+  count(wave.year, n, name = "participants")
+```
+
+As seen in the figure below, the questionnaires were administered in two different months each wave. Most of the time, the year belonging to these paired months is the same. The exception is in 2007 and 2008. It can be seen that the round of February 2008 belongs to the wave of 2007.
+
+The frequency of the questionnaire was approximately one year, except between 2013 and 2016, when there was a gap. This means the year 2014 is skipped.
+
+```{r}
+ggplot() +
+  geom_point(
+  mapping = aes(
+    x = date,
+    y = 0,
+    color = as.factor(wave.year)
+  ),
+  data = combined.data %>%
+    distinct(wave, date, wave.year)
+) +
+  labs(
+    x = "Date",
+    colour = "Year"
+  ) +
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y"
+  ) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+```
+
+Let's change the year of the wave of February 2008 to be 2007 and let's recode _wave_ to number the waves consecutively, taking into account that 2014 is skipped.
+
+```{r}
+combined.data <- combined.data %>%
+  mutate(
+    wave.year = if_else(wave == 200802, 2007, wave.year),
+    wave = recode(
+      wave.year,
+      `2007` = 1,
+      `2008` = 2,
+      `2009` = 3,
+      `2010` = 4,
+      `2011` = 5,
+      `2012` = 6,
+      `2013` = 7,
+      `2015` = 8,
+      `2016` = 9,
+      `2017` = 10,
+      `2018` = 11,
+      `2019` = 12,
+      `2020` = 13,
+      `2021` = 14
+    )
+  )
+```
+
+## Age
+
+The age of the participants was originally in our background data, but was removed because it was not time invariant. The same information is captured in the date of birth, which is time invariant. This allows us to reconstruct the age of the participant, for each of the waves. In fact, the original _age_ column was rounded down to the nearest year, whereas the new column will indicate the participant's age as a continuous variable.
+
+```{r}
+combined.data <- combined.data %>%
+  group_by(participant.id) %>%
+  mutate(age = as.numeric(date - date.of.birth) / 365.25) %>%
+  ungroup() %>%
+  relocate(age, .after = "wave.year")
+```
+
+# Clean Physical Activity
+
+## According to IPAQ guideline
+
+1. Check height and weight data based on data distribution (length data: 0-220, >260; weight data: 0-200, 300, >600).
+```{r}
+range(combined.data$length, na.rm = T)
+range(combined.data$weight, na.rm = T)
+```
+
+2. In some cases responses in 'hours' were reported as an equivalent number of 'minutes'. These data are converted to 0.
+```{r}
+combined.data$hrs_str[combined.data$hrs_str*60 == combined.data$min_str] <- 0
+combined.data$hrs_mod[combined.data$hrs_mod*60 == combined.data$min_mod] <- 0
+combined.data$hrs_walk[combined.data$hrs_walk*60 == combined.data$min_walk] <- 0
+```
+
+3. Correct negative values.
+```{r}
+combined.data$hrs_walk <- abs(combined.data$hrs_walk)
+```
+
+4. Check responses in 'minutes' were not entered in the 'hours': values of 15,30,45,60,and 90 in the 'hours' are converted to 15,30,45,60,90 minutes.
+```{r}
+### strenuous data
+combined.data$min_str[combined.data$hrs_str == 15] <- 15
+combined.data$min_str[combined.data$hrs_str == 30] <- 30
+combined.data$min_str[combined.data$hrs_str == 45] <- 45
+combined.data$min_str[combined.data$hrs_str == 60] <- 60
+combined.data$min_str[combined.data$hrs_str == 90] <- 90
+
+combined.data$hrs_str[which(combined.data$hrs_str %in% c(15, 30, 45, 60, 90))] <- 0
+
+### moderate data
+combined.data$min_mod[combined.data$hrs_mod == 15] <- 15
+combined.data$min_mod[combined.data$hrs_mod == 30] <- 30
+combined.data$min_mod[combined.data$hrs_mod == 45] <- 45
+combined.data$min_mod[combined.data$hrs_mod == 60] <- 60
+combined.data$min_mod[combined.data$hrs_mod == 90] <- 90
+
+combined.data$hrs_mod[which(combined.data$hrs_mod %in% c(15, 30, 45, 60, 90))] <- 0
+
+### walk data
+combined.data$min_walk[combined.data$hrs_walk == 15] <- 15
+combined.data$min_walk[combined.data$hrs_walk == 30] <- 30
+combined.data$min_walk[combined.data$hrs_walk == 45] <- 45
+combined.data$min_walk[combined.data$hrs_walk == 60] <- 60
+combined.data$min_walk[combined.data$hrs_walk == 90] <- 90
+
+combined.data$hrs_walk[which(combined.data$hrs_walk %in% c(15, 30, 45, 60, 90))] <- 0
+```
+
+5. Calculate activity time (minutes per day).
+6. Define Valid responses for day per week. If people did not answer the question about days per week, fill the values of time as 0.
+7. We assume people sleep 8 hours a day. Total PA should be less than 960.
+```{r}
+combined.data <- combined.data %>%
+  rowwise() %>%
+  mutate(
+    vig_time = sum(60*hrs_str, min_str, na.rm = T),
+    mod_time = sum(60*hrs_mod, min_mod, na.rm = T),
+    walk_time = sum(60*hrs_walk, min_walk, na.rm = T)
+  ) %>%
+  ungroup()
+
+combined.data$vig_time[is.na(combined.data[,"str_7days"])] <- NA
+combined.data$mod_time[is.na(combined.data[,"mod_7days"])] <- NA
+combined.data$walk_time[is.na(combined.data[,"walk_7days"])] <- NA
+
+combined.data$str_7days[combined.data$vig_time < 10] <- 0
+combined.data$mod_7days[combined.data$mod_time < 10] <- 0
+combined.data$walk_7days[combined.data$walk_time < 10] <- 0
+
+combined.data$vig_time[combined.data$vig_time > 960] <- NA
+combined.data$mod_time[combined.data$mod_time > 960] <- NA
+combined.data$walk_time[combined.data$walk_time > 960] <- NA
+
+combined.data <- combined.data %>%
+  rowwise() %>%
+  mutate(pa_time = sum(vig_time, mod_time, walk_time)) %>%
+  ungroup()
+
+head(combined.data)
+```
+
+## Calculating outcome variables MVPA and gl
+MVPA: Minutes per week moderate- to vigorous- intensity physical activity.
+Because walking has a MET value of 3.3, here consider it as moderate intensity PA.
+pa.state: if people are sufficiently or insufficiently active according to Dutch guideline (150+ minutes of moderate-intensity activity per week, spread over several days).
+
+```{r}
+combined.data <- combined.data %>%
+  rowwise() %>%
+  mutate(
+    MVPA = ifelse(pa_time <= 960, sum(vig_time*str_7days, mod_time*mod_7days, walk_time*walk_7days, na.rm = T), NA),
+    days = sum(str_7days, mod_7days, walk_7days, na.rm = T),
+    pa.state = ifelse(MVPA >= 150 & days >= 2, 1, 0)
+  ) %>%
+  ungroup() %>%
+  select(-c(str_7days, hrs_str, min_str, mod_7days, hrs_mod, min_mod, walk_7days, hrs_walk, min_walk, vig_time, mod_time, walk_time, pa_time, days))
+```
+
+# Clean BMI
+
+[Placeholder for text]
+
+## Age Limit
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+  mutate(
+    length = ifelse(age < 18, NA, length),
+    weight = ifelse(age < 18, NA, weight)
+  )
+```
+
+## Length
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  filter(age >= 18) %>%
+  summarise(missing = sum(is.na(length)))
+```
+
+Let's check is we can impute length. This only makes sense if we know weight. Otherwise, it's useless anyway.
+
+```{r}
+combined.data %>%
+  filter(age >= 18) %>%
+  count(missing.not.missing = is.na(length) & !is.na(weight))
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  count(length = cut(length, c(-Inf, seq(60, 240, 20), Inf)))
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  group_by(participant.id) %>%
+  filter(
+    any(!is.na(length))
+  ) %>%
+  summarise(
+    difference = diff(range(length, na.rm = TRUE)),
+    .groups = "drop"
+  ) %>%
+  count(difference)
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  group_by(participant.id) %>%
+  filter(
+    any(!is.na(length))
+  ) %>%
+  filter(
+    diff(range(length, na.rm = TRUE)) > 96,
+    diff(range(length, na.rm = TRUE)) < 103
+  )
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+    group_by(participant.id) %>%
+    mutate(
+      length = length + 100 * ((
+        any(!is.na(length)) &&
+          diff(range(length, na.rm = TRUE)) > 96 &&
+          diff(range(length, na.rm = TRUE)) < 103
+        ) & length < 100)
+    ) %>%
+  ungroup()
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+    group_by(participant.id) %>%
+    mutate(
+      length = length * NA ^ (
+        any(!is.na(length)) &&
+          diff(range(length, na.rm = TRUE)) > 4
+        )
+    ) %>%
+  ungroup()
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+  mutate(
+    length = ifelse(length < 140, NA, length),
+    length = ifelse(length > 220, NA, length)
+  )
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  group_by(participant.id) %>%
+  filter(
+    any(is.na(length) & !is.na(weight)),
+    any(!is.na(length))
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for text]
+
+## Weight
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+    count(weight = cut(weight, c(-Inf, seq(30, 190, 20), Inf)))
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+    group_by(participant.id) %>%
+    filter(
+      any(!is.na(weight))
+    ) %>%
+    summarise(difference = diff(range(weight, na.rm = TRUE)), .groups = "drop") %>%
+    count(difference)
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+    group_by(participant.id) %>%
+    mutate(
+      weight = weight * NA ^ (
+        any(!is.na(weight)) &&
+          (diff(range(weight, na.rm = TRUE)) > 80 || diff(range(weight, na.rm = TRUE)) < 2)
+        )
+    ) %>%
+  ungroup()
+```
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+    group_by(participant.id) %>%
+    mutate(
+      weight = weight * NA ^ (weight < 40 | weight > 200)
+    ) %>%
+  ungroup()
+```
+
+[Placeholder for text]
+
+## BMI
+
+[Placeholder for text]
+
+```{r}
+combined.data <- combined.data %>%
+  group_by(participant.id) %>%
+  mutate(bmi = weight / (length / 100) ^ 2) %>%
+  relocate(bmi, .after = "weight") %>%
+  ungroup() %>%
+  select(-length, -weight)
+combined.data
+```
+
+# Clean Smoking
+
+## Smoking status
+
+```{r}
+combined.data <- combined.data %>%
+  mutate(
+    smoking_status = case_when(
+      smokes_now == 1 ~ "Smokes",
+      smokes_now == 2 ~ "Stopped",
+      is.na(smokes_now)==TRUE & is.na(ever_smoked)==FALSE ~ "Never Smoked"
+    )
+  )
+```
+
+## Transitions
+
+I will only look at two adjacent periods at the time and pool all years. If someone filled in the questionnaire in 2007, 2008 and 2009, for example, then he will appear twice in the data set; once with the transition 2007-2008 and once with the transition 2008 - 2009. 
+
+```{r}
+transitions.uncorrected <- combined.data %>%
+  filter(
+    !is.na(ever_smoked),
+    wave.year < max(wave.year)
+  ) %>%
+  select(participant.id, sex, wave.year, smoking_status) %>%
+  inner_join(
+    combined.data %>%
+      filter(!is.na(ever_smoked),
+        wave.year > min(wave.year)) %>%
+      mutate(wave.year = wave.year - 1) %>%
+      select(participant.id, wave.year, smoking_status),
+    by = c("participant.id", "wave.year")
+  ) %>%
+  count(sex, "0" = smoking_status.x, "1" = smoking_status.y) %>%
+  mutate(row.id = seq(n())) %>%
+  pivot_longer(c("0", "1")) %>%
+  mutate(name = as.numeric(name))
+transitions.uncorrected
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = name,
+    id = row.id,
+    split = value,
+    value = n
+  ),
+  data = transitions.uncorrected
+) +
+  geom_parallel_sets(
+    mapping = aes(fill = as.factor(sex)),
+    alpha = 0.5,
+    axis.width = 0.1
+  ) +
+  geom_parallel_sets_axes(
+    axis.width = 0.1,
+    fill = "grey"
+  ) +
+  geom_parallel_sets_labels() +
+  scale_fill_discrete(
+    name = "Sex",
+    labels = c("Male", "Female")
+  ) +
+  theme_void()
+```
+
+[Placeholder for text]
+
+## Illogical Transitions
+
+[Placeholder for text]
+
+```{r}
+transitions<-data.frame()
+
+for (i in c(2007:2013, 2015:2019)) {
+  links_t<-combined.data %>%
+  {if (i==2013) filter(.,wave.year %in% c(i, i+2) & is.na(ever_smoked)==FALSE) else filter(.,wave.year %in% c(i, i+1) & is.na(ever_smoked)==FALSE)} %>%
+  mutate(wave.year=if_else(wave.year==min(wave.year), "source", "target"))%>%
+  select(participant.id, smokes_now, wave.year) %>%
+  mutate(smokes_now=as.factor(smokes_now)) %>% 
+  mutate(smokes_now=case_when(smokes_now ==1 ~ 'smokes', 
+                              smokes_now ==2 ~ 'stopped',
+                              is.na(smokes_now) ~ 'never smoked')) %>% 
+  spread(wave.year, smokes_now) %>%
+  filter(is.na(source)==FALSE & is.na(target)==FALSE) %>%
+    mutate(wave=i)
+  
+transitions<-rbind(transitions, links_t)
+}
+
+``` 
+
+Transitions 'stopped' -> 'never smoked' and 'smokes' -> 'never smoked' are impossible. They occur in `r transitions %>% filter(source %in% c('stopped', 'smokes') & target=='Never smoked') %>% count()` transitions, which `r (transitions %>% filter(source %in% c('stopped', 'smokes') & target=='never smoked') %>% count()*100)/(transitions %>% count())`% of the total number of transition.
+
+
+[Placeholder for text]
+
+```{r}
+
+transitions<-transitions %>% mutate(illogical=ifelse((source %in% c('stopped', 'smokes') & target=='never smoked'), TRUE, FALSE))
+
+illog_no<-transitions %>% filter(illogical==TRUE) %>%
+  distinct(participant.id) %>% pull(participant.id)
+
+
+illog_trans<-transitions %>% filter(participant.id %in% illog_no)
+
+illog_trans %>% group_by(participant.id) %>% summarize(pc=mean(illogical)) %>%
+  count(pc)
+
+```
+
+[Placeholder for text]
+
+```{r}
+illog_trans%>%count(wave)
+
+```
+
+## Correct Transitions
+
+If someone has ever answered 'smokes' or 'stopped', then I correct all 'never smoked' answers of that person in the following years to 'stopped'. This person can have the answer 'smokes' after 'stopped' but not 'never smoked' any more.
+
+```{r}
+
+# search the year when someone stated smoking or stopped smoking (after which he cannot answer 'never smoked')
+began_smoke_or_stopped<-combined.data %>% group_by(participant.id) %>% arrange(wave.year) %>% 
+  filter(smoking_status %in% c('Stopped', 'Smokes'))  %>%
+  filter(wave.year==min(wave.year)) %>% select(participant.id, wave.year) %>% rename(wave_began_stopped=wave.year)
+
+# correct smoking status
+combined.data <- combined.data %>%
+  left_join(y=began_smoke_or_stopped, by="participant.id") %>% 
+  mutate(wave_began_stopped=ifelse(is.na(wave_began_stopped), 9999, wave_began_stopped)) %>%
+  mutate(smoking_status_corr=ifelse((wave_began_stopped<wave.year & smoking_status=='Never Smoked'), "Stopped", smoking_status)) %>%
+  select(-wave_began_stopped)
+
+```
+
+# Clean Alcohol Consumption
+
+[Placeholder for text]
+
+# Explore Data
+
+## Participation
+
+Having cleaned all the data, we can explore the participation of the panel throughout the waves.
+
+```{r}
+combined.data %>%
+  group_by(wave) %>%
+  summarise(
+    n = n(),
+    n.pa = sum(!is.na(pa.state)),
+    n.bmi = sum(!is.na(bmi)),
+    n.smoking = sum(!is.na(smoking_status)),
+    .groups = "drop"
+  )
+```
+
+The table below shows how many people filled in the health questionnaire a given number of times.
+
+```{r}
+combined.data %>%
+  count(participant.id) %>%
+  count(number.of.waves = n)
+```
+
+The following shows the number of people who filled in the questionnaire less than five and five or more times.
+
+```{r}
+combined.data %>%
+  count(participant.id) %>%
+  summarise(
+    less.than.five = sum(n < 5),
+    five.or.more = sum(n >= 5)
+  )
+```
+
+For all participants and for each wave, we can note whether they participated. If not, the participant was either new and had never previously participated or had done so in the past and stopped participating.
+
+```{r}
+stratum.per.participant.per.wave <- combined.data %>%
+  expand(participant.id, wave) %>%
+  left_join(
+    combined.data %>%
+      select(participant.id, wave) %>%
+      mutate(stratum = TRUE),
+    by = c("participant.id", "wave")
+  ) %>%
+  arrange(participant.id, wave) %>%
+  group_by(participant.id) %>%
+  mutate(
+    stratum = case_when(
+      is.na(stratum) & cumsum(!is.na(stratum)) == 0 ~ "New",
+      is.na(stratum) & cumsum(!is.na(stratum)) > 0 ~ "Out",
+      stratum ~ "In"
+    ),
+    stratum = factor(stratum, levels = c("New", "In", "Out"))
+  ) %>%
+  ungroup()
+vtable(stratum.per.participant.per.wave, out = "return", missing = TRUE)
+```
+
+This data can be visualised, showing the approximate size of the groups who enter and exit the panel over time.
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = wave,
+    id = participant.id,
+    split = stratum,
+    value = 1,
+    fill = stratum
+  ),
+  data = stratum.per.participant.per.wave
+) +
+  geom_parallel_sets(
+    fill = "grey",
+    alpha = 0.5
+  ) +
+  geom_parallel_sets_axes(axis.width = 0.4) +
+  scale_x_continuous(
+    name = "Wave",
+    breaks = seq(13)
+  ) +
+  scale_fill_discrete(name = "Type") +
+  theme_void() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 4)),
+    axis.text.x = element_text(margin = margin(t = -12))
+  )
+```
+
+## Sex
+
+Let's explore what the proportions of males and females are throughout the waves.
+
+```{r}
+combined.data %>%
+  group_by(wave, sex) %>%
+  summarise(
+    n = n(),
+    n.pa = sum(!is.na(pa.state)),
+    n.bmi = sum(!is.na(bmi)),
+    n.smoking = sum(!is.na(smoking_status)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.pa = n.pa / sum(n.pa),
+    prevalence.bmi = n.bmi / sum(n.bmi),
+    prevalence.smoking = n.smoking / sum(n.smoking)
+  ) %>%
+  ungroup()
+```
+
+## Education
+
+Let's explore what the proportions of each education level are throughout the waves.
+
+```{r}
+combined.data %>%
+  group_by(wave, education) %>%
+  summarise(
+    n = n(),
+    n.pa = sum(!is.na(pa.state)),
+    n.bmi = sum(!is.na(bmi)),
+    n.smoking = sum(!is.na(smoking_status)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.pa = n.pa / sum(n.pa),
+    prevalence.bmi = n.bmi / sum(n.bmi),
+    prevalence.smoking = n.smoking / sum(n.smoking)
+  ) %>%
+  ungroup()
+```
+
+## Age
+
+Let's explore what the age distribution of our data is.
+
+```{r}
+combined.data %>%
+  group_by(wave) %>%
+  summarise(
+    min.age = min(age),
+    mean.age = mean(age),
+    max.age = max(age),
+    min.age.bmi = min(age[!is.na(bmi)]),
+    mean.age.bmi = mean(age[!is.na(bmi)]),
+    max.age.bmi = max(age[!is.na(bmi)]),
+    .groups = "drop"
+  )
+```
+
+We can also plot the distribution for all waves.
+
+```{r}
+ggplot() + 
+  geom_density(
+    mapping = aes(
+      x = age,
+      col = as.factor(wave)
+    ),
+    data = combined.data
+  ) +
+  labs(
+    x = "Age",
+    y = "Probability density",
+    col = "Wave"
+  )
+```
+
+## Physical Activity
+
+```{r}
+combined.data %>%
+  count(pa.state)
+```
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(x = MVPA, colour = as.factor(sex)),
+    data = combined.data %>%
+      filter(!is.na(MVPA))
+ )
+```
+
+```{r}
+ggplot() +
+  geom_freqpoly(
+    mapping = aes(
+      x = age,
+      colour = as.factor(pa.state)
+    ),
+    data = combined.data,
+    bins = 30
+  ) +
+  facet_wrap(~ sex)
+```
+
+## BMI
+
+[Placeholder for text]
+
+```{r}
+combined.data %>%
+  group_by(wave) %>%
+  summarise(
+    available = sum(!is.na(bmi)),
+    missing = sum(is.na(bmi)),
+    min.bmi = min(bmi, na.rm = TRUE),
+    mean.bmi = mean(bmi, na.rm = TRUE),
+    max.bmi = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = date,
+      y = bmi,
+      group = participant.id,
+      col = as.factor(participant.id)
+    ),
+    data = combined.data %>%
+      filter(!is.na(bmi)) %>%
+      group_by(participant.id) %>%
+      filter(n() == 13) %>%
+      nest() %>%
+      ungroup() %>%
+      slice_sample(n = 20) %>%
+      unnest(data)
+  )
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = bmi,
+      colour = as.factor(sex)
+    ),
+    data = combined.data %>%
+      group_by(participant.id) %>%
+      filter(
+        !is.na(bmi),
+        bmi > 15,
+        bmi < 45,
+        wave == max(wave)
+      ) %>%
+      ungroup()
+  ) +
+  xlim(15, 45) +
+  scale_color_discrete(labels = c("Male", "Female")) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    colour = "Sex"
+  )
+```
+
+[Placeholder for text]
+
+## Smoking
+
+Number of people who ever smoked per wave (only year).
+
+```{r}
+combined.data %>%
+  count(ever_smoked, wave.year) %>%
+  spread(ever_smoked, n) %>%
+  rename("yes"="1", "no"="2")
+```
+
+Number and percentage of people who smokes at the moment; had smoked before but stopped; and have never smoked:
+
+```{r}
+toplot<-combined.data %>%
+  add_count(wave.year, name = "n_in_wave") %>%
+  filter(is.na(ever_smoked)==FALSE) %>%
+  count(smoking_status, wave.year, n_in_wave) %>%
+  mutate(percentage=round((n/n_in_wave)*100,2))
+ggplot(toplot, aes(x=wave.year, y=n, group=smoking_status))+geom_line(aes(color=smoking_status))
+```
+
+```{r}
+ggplot(toplot, aes(x=wave.year, y=percentage, group=smoking_status))+geom_line(aes(color=smoking_status))
+```
+
+Check transactions again
+
+```{r}
+transitions <- combined.data %>%
+  filter(
+    !is.na(ever_smoked),
+    !is.na(smoking_status_corr),
+    wave.year < max(wave.year)
+  ) %>%
+  select(participant.id, sex, wave.year, smoking_status_corr) %>%
+  inner_join(
+    combined.data %>%
+      filter(
+        wave.year > min(wave.year),
+        !is.na(smoking_status_corr)
+      ) %>%
+      mutate(wave.year = wave.year - 1) %>%
+      select(participant.id, wave.year, smoking_status_corr),
+    by = c("participant.id", "wave.year")
+  ) %>%
+  count(sex, "0" = smoking_status_corr.x, "1" = smoking_status_corr.y) %>%
+  mutate(row.id = seq(n())) %>%
+  pivot_longer(c("0", "1")) %>%
+  mutate(name = as.numeric(name))
+transitions
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = name,
+    id = row.id,
+    split = value,
+    value = n
+  ),
+  data = transitions
+) +
+  geom_parallel_sets(
+    mapping = aes(fill = as.factor(sex)),
+    alpha = 0.5,
+    axis.width = 0.1
+  ) +
+  geom_parallel_sets_axes(
+    axis.width = 0.1,
+    fill = "grey"
+  ) +
+  geom_parallel_sets_labels() +
+  scale_fill_discrete(
+    name = "Sex",
+    labels = c("Male", "Female")
+  ) +
+  theme_void()
+```
+
+[Placeholder for text]
+
+```{r}
+transitions.per.wave <- combined.data %>%
+  expand(participant.id, wave) %>%
+  left_join(
+    combined.data %>%
+      filter(
+        !is.na(ever_smoked),
+        !is.na(smoking_status_corr)
+      ) %>%
+      select(participant.id, sex, wave, smoking_status_corr),
+    by = c("participant.id", "wave")
+  ) %>%
+  mutate(stratum = ifelse(is.na(smoking_status_corr), "unknown", smoking_status_corr))
+transitions.per.wave
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = wave,
+    id = participant.id,
+    split = stratum,
+    value = 1,
+    fill = stratum
+  ),
+  data = transitions.per.wave
+) +
+  geom_parallel_sets(
+    fill = "grey",
+    alpha = 0.5
+  ) +
+  geom_parallel_sets_axes(axis.width = 0.4) +
+  scale_x_continuous(
+    name = "Wave",
+    breaks = seq(13)
+  ) +
+  scale_fill_discrete(
+    name = "Smoke Status",
+    labels = c("Never Smoked", "Smokes", "Stopped", "Unknown")
+  ) +
+  theme_void() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 4)),
+    axis.text.x = element_text(margin = margin(t = -12))
+  )
+```
+
+[Placeholder for text]
+
+# Write Data
+
+In this document, we have cleaned and explored the LISS dataset. We can now export these data for use in further analyses.
+
+```{r}
+write_csv(
+  x = combined.data,
+  file = "../../Input Data/Risk Factors/LISS.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

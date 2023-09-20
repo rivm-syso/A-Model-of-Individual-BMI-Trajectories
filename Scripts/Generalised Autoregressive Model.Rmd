@@ -1,0 +1,761 @@
+---
+title: "Generalised Autoregressive Model"
+author: "Laurens Bogaardt"
+date: "2023-09-21"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+This document describes a generalised autoregressive model and explains how to generate data from this model and estimate its parameters. The model describes time series, or trajectories, which show the evolution of a continuous variable for a set of individuals. The individual trajectories are assumed to contain long-term, medium-term and short-term effects. This can be described by a generalisation of the first-order autoregressive (AR1) model. The long-term effects are operationalised as a random intercept, which indicates the individual's tendency to belong to the upper- or lower percentiles of the distribution. The medium-term effects are represented by a standard autoregressive process. This process assumes that, at each time period, a random shock occurs which either pushes the value up or down. The effect of a shock decays exponentially over time. The overall effect is the sum of all previous shocks, which results in a meandering time series with temporal autocorrelation. Short-term effects are modelled as additional, uncorrelated error. [Figure (3)](#fig:generate.population.with.generalised.autoregressive.values2) shows a breakdown of the three effects for a few trajectories. Note that no random slope is included. Models with these three components are described in detail in [@Diggle1988; @Diggle1994] and in [@Verbeke2000].
+
+Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the package _tidyverse_ to describe the functions contained in the helper script [@tidyverse2019]. Finally, we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+source("Generalised Autoregressive Model.R")
+library(tidyverse)
+set.seed(1234)
+```
+
+# Generate Data Iteratively
+
+In this section, we will generate data from our generalised autoregressive model in an iterative fashion and we will provide an interpretation of this process. An alternative methods exists which generates all values for all trajectories simultaneously. This is discussed in section [Generate Data Simultaneously]. The data generated in this section will serve as the input for the functions which estimate the model parameters in section [Estimate Model Parameters].
+
+## get.temporal.correlation.given.time.difference()
+
+In an autoregressive process, successive values are correlated to each other following an exponentially decaying function of the time difference $0 < \Delta t$ between the values, as shown in [equation (1)](#eq:temporal.correlation.given.time.difference). Here, $0 < \phi_0 < 1$ is the temporal correlation for values separated by a unit time step.
+
+<a id="eq:temporal.correlation.given.time.difference"/>
+\begin{equation}
+\tag{1}
+\phi(\Delta t) = \phi_0 ^ {\, \Delta t}
+\end{equation}
+
+The function _get.temporal.correlation.given.time.difference_ implements [equation (1)](#eq:temporal.correlation.given.time.difference).
+
+```{r}
+get.temporal.correlation.given.time.difference(
+  temporal.correlation = 0.93,
+  time.difference = 2
+)
+```
+
+## get.sd.shock.given.time.difference()
+
+In an autoregressive process, at every new time step, a small amount of error is added to the previous value. This is sometimes called an 'innovation' or a 'shock'. The amount of additional error is a function of the time difference between the two values following [equation (2)](#eq:sd.shock.given.time.difference). Here, $0 < \sigma_{0}$ is the standard deviation of the shock for values separated by a unit time step.
+
+<a id="eq:sd.shock.given.time.difference"/>
+\begin{equation}
+\tag{2}
+\sigma_{shock}(\Delta t) = \sigma_{0} \times \sqrt{\frac{1 - \phi(\Delta t) ^ 2}{1 - \phi_0 ^ 2}}
+\end{equation}
+
+The function _get.sd.shock.given.time.difference_ implements [equation (2)](#eq:sd.shock.given.time.difference).
+
+```{r}
+get.sd.shock.given.time.difference(
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  time.difference = 2
+)
+```
+
+## generate.next.value()
+
+In an autoregressive process, two successive values $x_{t}$ and $x_{t + \Delta t}$ are related to each other via [equation (3)](#eq:generate.next.value). This shows that each subsequent value is first pulled back to the centre, given that $0 < \phi(\Delta t) < 1$. Secondly, a shock $\epsilon_{shock}$ occurs which pushes the value in a random direction, uncorrelated to any previous value. The effect of a a single shock decays exponentially over time while the overall effect is the sum of all previous shocks, resulting in a meandering time series with temporal autocorrelation, visualised in [figure (2)](#fig:generate.population.with.generalised.autoregressive.values). In a first-order autoregressive process, each subsequent value only depends on the previous value, making it a Markov process which describes the step-by-step evolution of a continuous variable.
+
+<a id="eq:generate.next.value"/>
+\begin{equation}
+\tag{3}
+\begin{array}{c}
+x_{t + \Delta t} = \phi(\Delta t) \times x_{t} + \epsilon_{shock}\\[1.5mm]
+\epsilon_{shock} \sim \mathcal{N}(0, \, \sigma_{shock}(\Delta t))
+\end{array}
+\end{equation}
+
+The function _generate.next.value_ implements [equation (3)](#eq:generate.next.value).
+
+```{r}
+generate.next.value(
+  time.difference = 2,
+  previous.value = 1.4,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36
+)
+```
+
+In the limit of small time differences between steps, when many small shocks accumulate, the first-order autoregressive process becomes the Ornstein–Uhlenbeck process. Then, the central limit theorem ensures that the resulting values follow a normal distribution. If shocks themselves are sampled from a normal distribution, this holds for any time difference. [Figure (1)](#fig:generate.next.value) shows that function _generate.next.value_ produces normally distributed shocks.
+
+<a id="fig:generate.next.value"/>
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = replicate(3000, generate.next.value(2, 1.4, 0.93, 0.36))
+    )
+  ) +
+  labs(
+    x = "Generated next values",
+    y = "Probability density"
+  )
+```
+<center>Figure 1</center>
+
+## get.sd.correlated.error()
+
+An infinitely long trajectory contains values following a normal distribution with a standard deviation given by [equation (4)](#eq:get.sd.correlated.error). This standard deviation can also be obtained by setting an infinite time difference in [equation (2)](#eq:sd.shock.given.time.difference). When the previous value of an autoregressive process is unknown, the subsequent value follows a normal distribution with a standard deviation equal to $\sigma_{AR1}$.
+
+<a id="eq:get.sd.correlated.error"/>
+\begin{equation}
+\tag{4}
+\sigma_{AR1} = \sigma_{0} \times \sqrt{\frac{1}{1 - \phi_0 ^ 2}} = \sigma_{shock}(\infty)
+\end{equation}
+
+The function _get.sd.correlated.error_ implements [equation (4)](#eq:get.sd.correlated.error).
+
+```{r}
+get.sd.correlated.error(
+  temporal.correlation = 0.93,
+  sd.shock = 0.36
+)
+```
+
+## generate.population.with.generalised.autoregressive.values()
+
+When sampling individual trajectories from our generalised autoregressive model, the medium-term effects are combined with long-term and short-term effect. The long-term effects are operationalised as a random intercept, which indicates the individual's tendency to belong to the upper- or lower percentiles of the distribution. Short-term effects are modelled as additional, uncorrelated error. This model is described in [equation (5)](#eq:generate.population.with.generalised.autoregressive.values). Here, $X_{i}$ is the vector of values of individual $i$ measured at $k$ time periods. $RI_i$ is the random intercept of individual $i$, which has the same value for all time periods, and $J_k$ is the $k$-by-$k$ matrix with only ones. $AR1_i$ is the vector of $k$ correlated values, following the iterative process described in subsection [generate.next.value()]. Finally, $\epsilon_{i}$ is a $k$-vector of independent, random errors and $I_k$ is the identity matrix.
+
+<a id="eq:generate.population.with.generalised.autoregressive.values"/>
+\begin{equation}
+\tag{5}
+\begin{array}{@{\ }rcl@{\ }}
+X_{i} & = & RI_i \, + \, AR1_{i} \, + \, \epsilon_{i}\\[1.5mm]
+RI_i & \sim & \mathcal{N}(0, \, \sigma_{RI}^2 \, \times \, J_k) \\[1.5mm]
+\epsilon_{i} & \sim & \mathcal{N}(0, \, \sigma_{\epsilon}^2 \, \times \, I_k)
+\end{array}
+\end{equation}
+
+The function _generate.population.with.generalised.autoregressive.values_ implements [equation (5)](#eq:generate.population.with.generalised.autoregressive.values) and generates a dataset containing multiple individuals over multiple time steps together with their trajectories. How the parameters of the model can be estimated from such a dataset is described in section [Estimate Model Parameters].
+
+```{r}
+population.with.generalised.autoregressive.values <- generate.population.with.generalised.autoregressive.values(
+  n.participants = 3000,
+  n.time.steps = 12,
+  time.step.size = 2,
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+) %>%
+  as_tibble()
+head(population.with.generalised.autoregressive.values)
+```
+
+A few of the resulting trajectories are visualised in [figure (2)](#fig:generate.population.with.generalised.autoregressive.values).
+
+<a id="fig:generate.population.with.generalised.autoregressive.values"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = time,
+    y = value,
+    group = participant.id,
+    col = as.factor(participant.id)
+  ),
+  data = population.with.generalised.autoregressive.values %>%
+    filter(participant.id <= 10)
+) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Time",
+    y = "Value",
+    col = "Participant ID"
+  )
+```
+<center>Figure 2</center>
+
+To emphasise the point that these trajectories contain three stochastic components, [figure (3)](#fig:generate.population.with.generalised.autoregressive.values2) depicts a break-down of the effects. It shows three trajectories where the straight lines indicate the random intercepts. One of the trajectories fluctuates somewhere in the centre of the distribution, whereas the other two are on either extreme. The dashed lines indicate the autoregressive process on top of the random intercepts and the points indicate the additional, uncorrelated error. This figure is adapted from [@Verbeke2000].
+
+<a id="fig:generate.population.with.generalised.autoregressive.values2"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = time,
+    y = value,
+    col = as.factor(participant.id),
+    linetype = name,
+    shape = name
+  ),
+  data = population.with.generalised.autoregressive.values %>%
+    filter(
+      abs(random.intercept - 2) == min(abs(random.intercept - 2)) |
+        abs(random.intercept) == min(abs(random.intercept)) |
+        abs(random.intercept + 2) == min(abs(random.intercept + 2))
+    ) %>%
+    mutate(riar1 = random.intercept + autoregressive) %>%
+    pivot_longer(c(random.intercept, riar1, value))
+) +
+  geom_line() +
+  geom_point(na.rm = TRUE) +
+  labs(
+    x = "Time",
+    y = "Value"
+  ) +
+  scale_linetype_manual(
+    name = "Effect",
+    values = c("solid", "dashed", NA),
+    labels = c("RI", "RI + AR1", "RI + AR1 + \u03B5")
+  ) +
+  scale_shape_manual(
+    name = "Effect",
+    values = c(NA, NA, 19),
+    labels = c("RI", "RI + AR1", "RI + AR1 + \u03B5")
+  ) +
+  guides(col = "none") +
+  theme(
+    axis.text.x = element_blank(),
+    axis.text.y = element_blank()
+  )
+```
+<center>Figure 3</center>
+
+# Generate Data Simultaneously
+
+In this section, we will generate data from our generalised autoregressive model whereby all values of the trajectories are obtained simultaneously. Unlike the methods in section [Generate Data Iteratively], which shows how a trajectory evolves over time, the methods in this section can be interpreted as a way of directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories.
+
+## get.time.constant()
+
+[Equation (1)](#eq:temporal.correlation.given.time.difference) can be rewritten as [equation (6)](#eq:get.time.constant2) which introduces the parameter $\tau_{AR1}$. This is sometimes called the 'time constant' or 'range'.
+
+<a id="eq:get.time.constant2"/>
+\begin{equation}
+\tag{6}
+\phi(\Delta t) = e ^ {\, - \frac{\Delta t}{\tau_{AR1}}}
+\end{equation}
+
+The time constant is related to $\phi_{0}$ via [equation (7)](#eq:get.time.constant) and indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value.
+
+<a id="eq:get.time.constant"/>
+\begin{equation}
+\tag{7}
+\tau_{AR1} = \frac{-1}{log(\phi_0)}
+\end{equation}
+
+The function _get.time.constant_ implements [equation (7)](#eq:get.time.constant).
+
+```{r}
+get.time.constant(
+  temporal.correlation = 0.93
+)
+```
+
+## get.total.variance()
+
+For a dataset with multiple individuals over multiple time steps, such as the one generated in subsection [generate.population.with.generalised.autoregressive.values()], the total variance of all trajectories is given by [equation (8)](#eq:get.total.variance).
+
+<a id="eq:get.total.variance"/>
+\begin{equation}
+\tag{8}
+\sigma_{total} ^ 2 = \sigma_{RI} ^ 2 + \sigma_{AR1} ^ 2 + \sigma_{\epsilon} ^ 2
+\end{equation}
+
+The function _get.total.variance_ implements [equation (8)](#eq:get.total.variance).
+
+```{r}
+get.total.variance(
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+)
+```
+
+## get.covariance.given.time.difference()
+
+For a dataset with multiple individuals over multiple time steps, such as the one generated in subsection [generate.population.with.generalised.autoregressive.values()], the covariance between values separated by a time difference $\Delta t$ is given by [equation (9)](#eq:get.covariance.given.time.difference). When there is no time difference between the values, this covariance reduces to the variance described in subsection [get.total.variance()].
+
+<a id="eq:get.covariance.given.time.difference"/>
+\begin{equation}
+\tag{9}
+cov(\Delta t) =
+\left\{
+\begin{array}{lr}
+\sigma_{RI} ^ 2 + \sigma_{AR1} ^ 2 + \sigma_{\epsilon} ^ 2 & \text{if } \Delta t = 0\\[1.5mm]
+\sigma_{RI} ^ 2 + \sigma_{AR1} ^ 2 \times \phi(\Delta t) & \text{if } \Delta t > 0
+\end{array}
+\right\}
+\end{equation}
+
+The function _get.covariance.given.time.difference_ implements [equation (9)](#eq:get.covariance.given.time.difference).
+
+```{r}
+get.covariance.given.time.difference(
+  time.difference = 2,
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+)
+```
+
+[Figure (4)](#fig:get.covariance.given.time.difference) plots the function _get.covariance.given.time.difference_ by time difference. It shows the exponentially decaying covariance which starts off at a value equal to the total variance described in subsection [get.total.variance()]. It drops down instantaneously due to the uncorrelated error. In spatial statistics, this error term is sometimes called the 'nugget'. Depending on the application which is being modelled, the uncorrelated error can be seen as an integral part of the data generating mechanism or simply as a statistical trick to capture the measurement error in the observed data. The autoregressive part is determined by the time constant described in subsection [get.time.constant()] and by the standard deviation described in subsection [get.sd.correlated.error()]. Finally, the figure shows the variance related to the random intercept.
+
+<a id="fig:get.covariance.given.time.difference"/>
+```{r}
+ggplot(
+  data = tibble(
+    sd.random.intercept = 1.12,
+    temporal.correlation = 0.93,
+    sd.shock = 0.36,
+    sd.uncorrelated.error = 0.41
+  )
+) +
+  stat_function(
+    fun = get.covariance.given.time.difference,
+    args = list(
+      sd.random.intercept = 1.12,
+      temporal.correlation = 0.93,
+      sd.shock = 0.36,
+      sd.uncorrelated.error = 0.41
+    )
+  ) +
+  geom_hline(
+    mapping = aes(
+      yintercept = sd.random.intercept ^ 2
+    ),
+    linetype = "dashed"
+  ) +
+  geom_hline(
+    mapping = aes(
+      yintercept = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0)
+    ),
+    linetype = "dashed"
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 13,
+      y = 0,
+      xend = 13,
+      yend = sd.random.intercept ^ 2
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 13,
+      y = sd.random.intercept ^ 2 / 2,
+      label = sprintf("sigma [RI] ^ 2 == %.2f", sd.random.intercept ^ 2)
+    ),
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 20,
+      y = sd.random.intercept ^ 2,
+      xend = 20,
+      yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0)
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 20,
+      y = sd.random.intercept ^ 2 + get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2 / 2,
+      label = sprintf("sigma [AR1] ^ 2 == %.2f", get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2)
+    ),
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 27,
+      y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
+      xend = 27,
+      yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error)
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 29,
+      y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0.7 * sd.uncorrelated.error),
+      label = sprintf("sigma [epsilon] ^ 2 == %.2f", sd.uncorrelated.error ^ 2)
+    ),
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 34,
+      y = 0,
+      xend = 34,
+      yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error)
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = 34,
+      y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error) / 2,
+      label = sprintf("sigma [total] ^ 2 == %.2f", get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, sd.uncorrelated.error))
+    ),
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  geom_segment(
+    mapping = aes(
+      x = 1e-9,
+      y = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      xend = get.time.constant(temporal.correlation),
+      yend = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2
+    ),
+    arrow = arrow(ends = "both", length = unit(0.3, "cm")),
+    show.legend = FALSE
+  ) +
+  geom_label(
+    mapping = aes(
+      x = get.time.constant(temporal.correlation) / 2,
+      y = sd.random.intercept ^ 2 + exp(-1) * get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2,
+      label = sprintf("tau [AR1] == %.1f", get.time.constant(temporal.correlation))
+    ),
+    parse = TRUE,
+    show.legend = FALSE
+  ) +
+  scale_x_continuous(
+    limits = c(1e-9, 40),
+    expand = c(0, 0)
+  ) +
+  scale_y_continuous(
+    limits = c(0, NA),
+    expand = c(0, 0)
+  ) +
+  labs(
+    x = "Time difference",
+    y = "Covariance"
+  )
+```
+<center>Figure 4</center>
+
+## get.covariance.matrix()
+
+For a vector of time periods, the covariance matrix associated with our model is given by [equation (10)](#eq:get.covariance.matrix). This makes use the time difference between each of the periods in combination with [equation (9)](#eq:get.covariance.given.time.difference).
+
+<a id="eq:get.covariance.matrix"/>
+\begin{equation}
+\tag{10}
+\Sigma_{t t'} = cov(|t - t'|)
+\end{equation}
+
+The function _get.covariance.matrix_ implements [equation (10)](#eq:get.covariance.matrix).
+
+```{r}
+get.covariance.matrix(
+  times = c(0, 2, 3, 11),
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+)
+```
+
+## generate.generalised.autoregressive.values()
+
+Given the covariance matrix $\Sigma$ as described in subsection [get.covariance.matrix()], [equation (11)](#eq:generate.generalised.autoregressive.values) shows our model where $X$ is a random variable representing the trajectories. This method can be interpreted as directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories with the appropriate correlation between each value. The method gives identical results to the one described in section [Generate Data Iteratively].
+
+<a id="eq:generate.generalised.autoregressive.values"/>
+\begin{equation}
+\tag{11}
+X \sim \mathcal{N}(0, \, \Sigma)
+\end{equation}
+
+The function _generate.generalised.autoregressive.values_ implements [equation (11)](#eq:generate.generalised.autoregressive.values).
+
+```{r}
+generate.generalised.autoregressive.values(
+  n = 3,
+  times = seq(4),
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+)
+```
+
+## generate.population.with.values.simultaneously()
+
+The function _generate.population.with.values.simultaneously_ creates a population dataset by sampling all trajectories simultaneously. It provides an alternative, and computationally faster, method to the one described in subsection [generate.population.with.generalised.autoregressive.values()].
+
+```{r}
+generate.population.with.values.simultaneously(
+  n.participants = 10,
+  n.time.steps = 3,
+  time.step.size = 2,
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+) %>%
+  as_tibble()
+```
+
+## get.transition.probability()
+
+Unlike the iterative process described in section [Generate Data Iteratively], the methods described in section [Generate Data Simultaneously] rely on the covariance between values at different points in time. This follows the function described in subsection [get.covariance.given.time.difference()], which allows us to easily formulate the probability distribution of a future value given a current value within a trajectory. In many applications, it is beneficial to discretise these values into categories and to determine the transition probability of going from one category to another, after some time has passed.
+
+Let the intervals $[x_{l1},x_{u1})$ and $[x_{l2},x_{u2})$ define two discrete categories and let $f_{X}(x_1, x_2)$ define the probability density function of the bivariate random variable $X = (X_1, X_2)$ which is normally distributed according to [equation (11)](#eq:generate.generalised.autoregressive.values) where $\Delta t$ is the time interval in which the transition takes place. The probability for this individual to experience a transition going from the discrete category $x_{l1} \leq X_1 < x_{u1}$ to the category $x_{l2} \leq X_2 < x_{u2}$ is, then, given by [equation (12)](#eq:get.transition.probability).
+
+<a id="eq:get.transition.probability"/>
+\begin{equation}
+\tag{12}
+\mbox{Pr}(x_{l2} \leq X_2 < x_{u2}|x_{l1} \leq X_1 < x_{u1}) = \frac{\int_{x_{l1}}^{x_{u1}}\int_{x_{l2}}^{x_{u2}}f_{X}(x_1,x_2)dx_1dx_2}{\int_{x_{l1}}^{x_{u1}}\int_{-\infty}^{\infty}f_{X}(x_1,x_2)dx_1dx_2}
+\end{equation}
+
+The function _get.transition.probability_ implements [equation (12)](#eq:get.transition.probability).
+
+```{r}
+get.transition.probability(
+  start.lower = -0.1,
+  start.upper = 1.4,
+  end.lower = 0.2,
+  end.upper = 1.8,
+  time.difference = 2,
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+)
+```
+
+The transitions which occur in the dataset generated in subsection [generate.population.with.generalised.autoregressive.values()] can be examined. We first discretise all values according to the thresholds $(-1, 0, 1)$ which define four categories. Then, every transition from one category to the next within a trajectory is counted and can be compared with the predicted transitions.
+
+```{r}
+observed.transitions <- population.with.generalised.autoregressive.values %>%
+  mutate(
+    start.lower = case_when(
+      value < -1 ~ -Inf,
+      value < 0 ~ -1,
+      value < 1 ~ 0,
+      TRUE ~ 1
+    ),
+    start.upper = case_when(
+      value < -1 ~ -1,
+      value < 0 ~ 0,
+      value < 1 ~ 1,
+      TRUE ~ Inf
+    )
+  ) %>%
+  group_by(participant.id) %>%
+  mutate(
+    end.lower = lead(start.lower, order_by = time),
+    end.upper = lead(start.upper, order_by = time)
+  ) %>%
+  ungroup() %>%
+  filter(!is.na(end.lower)) %>%
+  count(start.lower, start.upper, end.lower, end.upper) %>%
+  group_by(start.lower) %>%
+  mutate(
+    type = "Observed",
+    transition.probability = n / sum(n),
+    transition.probability.se = sqrt(n / sum(n) * (1 - n / sum(n)) / sum(n)),
+    transition.probability.025 = pmax(0, transition.probability + qnorm(0.025) * transition.probability.se),
+    transition.probability.975 = pmin(1, transition.probability + qnorm(0.975) * transition.probability.se)
+  ) %>%
+  ungroup()
+observed.transitions
+```
+
+The predicted transition rates are determined by combining the thresholds $(-1, 0, 1)$ with [equation (12)](#eq:get.transition.probability).
+
+```{r}
+model.transitions <- expand_grid(
+  nesting(
+    start.lower = c(-Inf, -1, 0, 1),
+    start.upper = c(-1, 0, 1, Inf)
+  ),
+  nesting(
+    end.lower = c(-Inf, -1, 0, 1),
+    end.upper = c(-1, 0, 1, Inf)
+  )
+) %>%
+  mutate(
+    type = "Model",
+    transition.probability = mapply(
+      get.transition.probability,
+      start.lower = start.lower,
+      start.upper = start.upper,
+      end.lower = end.lower,
+      end.upper = end.upper,
+      time.difference = 2,
+      sd.random.intercept = 1.12,
+      temporal.correlation = 0.93,
+      sd.shock = 0.36,
+      sd.uncorrelated.error = 0.41
+    )
+  )
+model.transitions
+```
+
+The observed transition rates and the transition rates predicted by our model are compared in [figure (5)](#fig:get.transition.probability).
+
+<a id="fig:get.transition.probability"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = as.factor(start.lower),
+    y = as.factor(end.lower),
+    fill = transition.probability,
+    label = ifelse(
+      type == "Model",
+      sprintf("%.2f", transition.probability),
+      sprintf("%.2f-%.2f", transition.probability.025, transition.probability.975)
+    )
+  ),
+  data = model.transitions %>%
+    bind_rows(observed.transitions)
+) +
+  geom_tile(alpha = 0.7) +
+  geom_text() +
+  scale_fill_viridis_c() +
+  scale_x_discrete(
+    labels = c("below -1", "-1 to 0", "0 to 1", "above 1")
+  ) +
+  scale_y_discrete(
+    labels = c("below -1", "-1 to 0", "0 to 1", "above 1")
+  ) +
+  guides(fill = "none") +
+  labs(
+    x = "Current value",
+    y = "Next value"
+  ) +
+  facet_wrap(~ type)
+```
+<center>Figure 5</center>
+
+# Estimate Model Parameters
+
+In this section, we will estimate the parameters of our generalised autoregressive model given the input data. The assumed data generating process was described in sections [Generate Data Iteratively] and [Generate Data Simultaneously].
+
+## fit.generalised.autoregressive.model()
+
+The function _fit.generalised.autoregressive.model_ relies on the package _nlme_ to find the parameters of our model which best fit the data via restricted maximum likelihood [@nlme2021]. The example below uses data generated in subsection [generate.population.with.generalised.autoregressive.values()].
+
+```{r}
+fitted.generalised.autoregressive.model <- fit.generalised.autoregressive.model(
+  data = population.with.generalised.autoregressive.values,
+  fixed.formula = value ~ 0
+)
+fitted.generalised.autoregressive.model
+```
+
+## get.generalised.autoregressive.model.parameters()
+
+The function _get.generalised.autoregressive.model.parameters_ extracts the values of the parameters from a fitted model and returns them as a named list in the same format as required by the generating functions described in sections [Generate Data Iteratively] and [Generate Data Simultaneously].
+
+```{r}
+get.generalised.autoregressive.model.parameters(
+  fit = fitted.generalised.autoregressive.model
+)
+```
+
+# Simulation Study
+
+This section documents a quick simulation study, performed by generating data multiple times using the method described in subsection [generate.population.with.values.simultaneously()] and by estimating the parameters using the methods described in subsections [fit.generalised.autoregressive.model()] and [get.generalised.autoregressive.model.parameters()].
+
+```{r}
+multiple.generalised.autoregressive.model.parameters <- generate.population.with.values.simultaneously(
+  n.participants = 3000,
+  n.time.steps = 10,
+  time.step.size = 2,
+  sd.random.intercept = 1.12,
+  temporal.correlation = 0.93,
+  sd.shock = 0.36,
+  sd.uncorrelated.error = 0.41
+) %>%
+  fit.generalised.autoregressive.model() %>%
+  get.generalised.autoregressive.model.parameters() |>
+  replicate(n = 50) %>%
+  t() %>%
+  as_tibble()
+multiple.generalised.autoregressive.model.parameters
+```
+
+The resulting estimated parameters are visualised in [figure (6)](#fig:simulation) together with the 'true' parameter values.
+
+<a id="fig:simulation"/>
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = value,
+      fill = name
+    ),
+    data = multiple.generalised.autoregressive.model.parameters %>%
+      pivot_longer(everything()),
+    alpha = 0.5
+  ) +
+  geom_vline(
+    mapping = aes(
+      xintercept = value,
+      col = name
+    ),
+    data = tibble(
+      name = c("sd.random.intercept", "temporal.correlation", "sd.shock", "sd.uncorrelated.error"),
+      value = c(1.12, 0.93, 0.36, 0.41)
+    )
+  ) +
+  labs(
+    x = "Estimated value",
+    y = "Probability density"
+  ) +
+  theme(legend.position = "none") +
+  facet_wrap(
+    ~ name,
+    scales = "free"
+  )
+```
+<center>Figure 6</center>
+
+[Figure (6)](#fig:simulation) only shows the marginal distributions of the estimated parameters, but the joint probability distribution also contains correlations between these parameters. [Figure (7)](#fig:correlations) visualises these correlations. This shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (4)](#fig:get.covariance.given.time.difference).
+
+<a id="fig:correlations"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = rep(names(multiple.generalised.autoregressive.model.parameters), times = 4),
+    y = rep(names(multiple.generalised.autoregressive.model.parameters), each = 4),
+    fill = c(cor(multiple.generalised.autoregressive.model.parameters)),
+    label = sprintf("%.2f", cor(multiple.generalised.autoregressive.model.parameters))
+  )
+) +
+  geom_tile(alpha = 0.7) +
+  geom_text() +
+  scale_fill_viridis_c() +
+  guides(fill = "none") +
+  labs(
+    x = NULL,
+    y = NULL
+  )
+```
+<center>Figure 7</center>
+
+# References

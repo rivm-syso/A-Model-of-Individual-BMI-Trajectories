@@ -1,0 +1,365 @@
+---
+title: "Clean and Explore Doetinchem Cohort Study"
+author: "Laurens Bogaardt"
+date: "2023-02-01"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+link-citations: yes
+---
+
+```{r include = FALSE}
+# TODO: Find references of ALL libraries loaded in R/RMarkdown.
+```
+
+# Introduction
+
+The purpose of this script is to clean the data of the Doetinchem Cohort Study [@Verschuren2008]. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported.
+
+The Doetinchem data is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017].
+
+Throughout the document, we will limit the output in each step. This is because the Doetinchem data is not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
+
+First, we will need to load some packages.[@tidyverse2019; @vtable2021]. 
+
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+library(ggforce)
+library(vtable)
+```
+
+# Load Data
+
+Let's now load the Doetinchem dataset.
+
+```{r}
+doetinchem <- read_sas(
+  data_file = "../../2. Data Ruw/Doetinchem/doetcoh_lcdm_update.sas7bdat",
+  col_select = starts_with(
+    c(
+      "OPRNR",
+      "gesl",
+      "ses",
+      "leeft",
+      "onddat",
+      "qindex",
+      "rook3cat"
+    )
+  )
+)
+vtable(doetinchem, out = "return", missing = TRUE)
+```
+
+# Clean Data
+
+## Participant ID
+
+Let's rename the participant ID column _OPRNR_ and check if it is missing for any row in the dataset.
+
+```{r}
+doetinchem <- doetinchem %>%
+  rename(participant.id = OPRNR)
+doetinchem %>%
+  summarise(missing = sum(is.na(participant.id)))
+```
+
+## Sex
+
+Let's rename the participant sex column _gesl_ and verify that there are only two sexes. We can immediately check whether there are any missing values.
+
+```{r}
+doetinchem <- doetinchem %>%
+  rename(sex = gesl) %>%
+  mutate(sex = sex - 1)
+doetinchem %>% 
+  count(sex)
+```
+
+## Pivot Dataset
+
+```{r}
+doetinchem.pivot <- doetinchem %>%
+  pivot_longer(
+    cols = !c(participant.id, sex),
+    names_pattern = "(.*)r(.)",
+    names_to = c(".value", "wave"),
+    names_transform = list(wave = as.integer)
+  ) %>%
+  rename(
+    date = onddat,
+    bmi = qindex,
+    age = leeft,
+    education = ses3,
+    smoke.status = rook3cat
+  ) %>%
+  arrange(participant.id, wave)
+vtable(doetinchem.pivot, out = "return", missing = TRUE)
+```
+
+## Waves and Dates
+
+```{r}
+doetinchem.pivot %>%
+  summarise(missing = sum(is.na(date)))
+```
+
+```{r}
+doetinchem.pivot %>%
+  filter(is.na(date)) %>%
+  summarise(available = sum(!is.na(bmi) | !is.na(age) | !is.na(smoke.status)))
+```
+
+```{r}
+doetinchem.pivot <- doetinchem.pivot %>%
+  filter(!is.na(date))
+```
+
+```{r}
+doetinchem.pivot %>%
+  group_by(participant.id) %>%
+  summarise(is.unsorted = is.unsorted(date), .groups = "drop") %>%
+  summarise(unsorted = sum(is.unsorted))
+```
+
+## Education
+
+```{r}
+doetinchem.pivot %>%
+  count(wave, education) %>%
+  pivot_wider(names_from = wave, values_from = n)
+```
+
+Let's first reorganise the Doetinchem dataset. Seeing that the original data contains four, possibly differing, entries per individual for the socio-economic status, some of which may be missing, we choose the last available entry as the one representing their true socio-economic status.
+
+```{r}
+doetinchem.pivot <- doetinchem.pivot %>%
+  group_by(participant.id) %>%
+  arrange(wave) %>%
+  mutate(education = last(na.omit(education))) %>%
+  ungroup()
+doetinchem.pivot %>%
+  count(education)
+```
+
+```{r}
+doetinchem.pivot <- doetinchem.pivot %>%
+  filter(!is.na(education))
+```
+
+## Age
+
+```{r}
+doetinchem.pivot %>%
+  summarise(missing = sum(is.na(age)))
+```
+
+```{r}
+doetinchem.pivot %>%
+  group_by(participant.id) %>%
+  summarise(is.unsorted = is.unsorted(age)) %>%
+  summarise(unsorted = sum(is.unsorted))
+```
+
+```{r}
+doetinchem.pivot %>%
+  group_by(participant.id) %>%
+  summarise(difference = diff(range(date - age * 365.25)), .groups = "drop") %>%
+  summarise(difference = sum(difference > 0.1), .groups = "drop")
+```
+
+```{r}
+doetinchem.pivot <- doetinchem.pivot %>%
+  group_by(participant.id) %>%
+  filter(diff(range(date - age * 365.25)) < 0.1) %>%
+  ungroup()
+```
+
+## BMI
+
+```{r}
+doetinchem.pivot %>%
+  summarise(missing = sum(is.na(bmi)))
+```
+
+# Explore
+
+```{r}
+doetinchem.pivot %>%
+  count(wave)
+```
+
+For all participants and for each wave, we can note whether they participated. If not, the participant was either new and had never previously participated or had done so in the past and stopped participating.
+
+```{r}
+stratum.per.participant.per.wave <- doetinchem.pivot %>%
+  select(participant.id, wave, date) %>%
+  filter(!is.na(date)) %>%
+  complete(participant.id, wave) %>%
+  arrange(participant.id, wave) %>%
+  group_by(participant.id) %>%
+  mutate(
+    stratum = case_when(
+      is.na(date) & cumsum(!is.na(date)) > 0 ~ "Out",
+      TRUE ~ "In"
+    ),
+    stratum = factor(stratum, levels = c("In", "Out"))
+  ) %>%
+  ungroup()
+stratum.per.participant.per.wave
+```
+
+This data can be visualised, showing the approximate size of the groups who enter and exit the panel over time.
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = wave,
+    id = participant.id,
+    split = stratum,
+    value = 1,
+    fill = stratum
+  ),
+  data = stratum.per.participant.per.wave
+) +
+  geom_parallel_sets(
+    fill = "grey",
+    alpha = 0.5
+  ) +
+  geom_parallel_sets_axes(axis.width = 0.4) +
+  scale_x_continuous(
+    name = "Wave",
+    breaks = seq(6)
+  ) +
+  scale_fill_discrete(name = "Type") +
+  theme_void() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 4)),
+    axis.text.x = element_text(margin = margin(t = -12))
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+doetinchem.pivot %>%
+  group_by(wave) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop"
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+doetinchem.pivot %>%
+  group_by(wave, sex) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.bmi = n.bmi / sum(n.bmi)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+doetinchem.pivot %>%
+  group_by(wave, education) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.bmi = n.bmi / sum(n.bmi)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+doetinchem.pivot %>%
+  group_by(wave) %>%
+  summarise(
+    min.age = min(age),
+    mean.age = mean(age),
+    max.age = max(age),
+    min.age.bmi = min(age[!is.na(bmi)]),
+    mean.age.bmi = mean(age[!is.na(bmi)]),
+    max.age.bmi = max(age[!is.na(bmi)]),
+    min.bmi = min(bmi, na.rm = TRUE),
+    mean.bmi = mean(bmi, na.rm = TRUE),
+    max.bmi = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(x = difference),
+    data = doetinchem.pivot %>%
+      filter(!is.na(bmi)) %>%
+      group_by(participant.id) %>%
+      summarise(difference = diff(range(bmi)), .groups = "drop")
+  ) +
+  labs(
+    x = "BMI differences",
+    y = "Probability density"
+  )
+```
+
+[Placeholder for text]
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = bmi,
+      colour = as.factor(sex)
+    ),
+    data = doetinchem.pivot %>%
+      filter(!is.na(bmi), bmi > 15, bmi < 45)
+  ) +
+  xlim(15, 45) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    colour = "Sex"
+  ) +
+  scale_color_discrete(labels = c("Male", "Female"))
+```
+
+# Write Data
+
+In this document, we have explored and cleaned the Doetinchem dataset. We can now export these data for use in further analyses.
+
+```{r}
+write_csv(
+  x = doetinchem.pivot,
+  file = "../../Input Data/Risk Factors/Doetinchem.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

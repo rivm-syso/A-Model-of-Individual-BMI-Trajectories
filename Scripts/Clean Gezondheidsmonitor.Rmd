@@ -1,0 +1,519 @@
+---
+title: "Clean and Explore Gezondheidsmonitor Volwassenen 2012"
+author: "Laurens Bogaardt"
+date: "2023-02-01"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+link-citations: yes
+---
+
+# Introduction
+
+The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands in 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model. Furthermore, the data for 2016 will be reserved for external validation, described in the online supplementary information [@Bogaardt2022]. This leads to our choice of fitting the model on the 2012 data.
+
+Table~\ref{tab:Gezondheidsmonitor} provides some descriptive statistics of the variables used which excludes some of the original data, removed in the cleaning process. This is also described in the online supplementary information. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
+
+Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data is not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).[@tidyverse2019]
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+```
+
+[Placeholder for Text]
+
+# Load Data
+
+[Placeholder for Text]
+
+```{r}
+population.by.year.sex.education.and.age <- read_csv(
+  file = "../CBS/Demografie/Bevolkingsgrootte/Population by Year, Sex, Education and Age.csv",
+  col_type = cols_only(
+    year = col_integer(),
+    sex = col_factor(),
+    education = col_factor(),
+    age = col_factor(),
+    population.size = col_integer()
+  )
+)
+population.by.year.sex.education.and.age
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data <- read_sav(
+  file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2012/2020_03_31_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
+  col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201", "LFALA201", "LFALA202", "LFALS218", "LFRKA205", "LFRKA206", "LFRKA207")
+) %>%
+  zap_labels() %>%
+  rename(
+    sex = geslacht,
+    education = opleiding_def,
+    weight = weegfactor3,
+    age = LFT0109,
+    bmi = AGGWS201,
+    drinker_last_year = LFALA201,
+    exdrinker = LFALA202,
+    #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
+    glasses_per_week = LFALS218,
+    roker = LFRKA205,
+    exroker = LFRKA206,
+    nooitroker = LFRKA207
+  ) %>%
+  mutate(year = 2012) %>%
+  bind_rows(
+    read_sav(
+      file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2016/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
+      col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA201", "LFALA202", "alc_week","LFRKA205", "LFRKA206", "LFRKA207")
+    ) %>%
+      zap_labels() %>%
+      rename(
+        sex = geslacht,
+        education = Opleiding_samind,
+        weight = ewGGD,
+        age = LFT0109,
+        bmi = AGGWS201,
+        drinker_last_year = LFALA201,
+        exdrinker = LFALA202,
+        #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
+        glasses_per_week = alc_week,
+        roker = LFRKA205,
+        exroker = LFRKA206,
+        nooitroker = LFRKA207
+      ) %>%
+      mutate(year = 2016)
+  ) %>%
+  bind_rows(
+    read_sav(
+      file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2020/2022_2_28Totaalbestand GGD en CBS (N=539.902) Landelijk.sav",
+      col_select = c("Surveynummer", "ewGGDkern", "Geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA217", "LFALA218", "alc_week", "LFRKA205", "LFRKA206", "LFRKA207")
+    ) %>%
+      zap_labels() %>%
+      rename(
+        sex = Geslacht,
+        education = Opleiding_samind,
+        weight = ewGGDkern,
+        age = LFT0109,
+        bmi = AGGWS201,
+        drinker_last_year = LFALA217,
+        exdrinker = LFALA218,
+        #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
+        glasses_per_week = alc_week,
+        roker = LFRKA205,
+        exroker = LFRKA206,
+        nooitroker = LFRKA207
+      ) %>%
+      mutate(year = 2020)
+  ) %>%
+  relocate(year, .before = "Surveynummer") %>%
+  mutate(
+    sex = sex - 1,
+    education = ifelse(education == 1, education, education - 1) #recode the education levels. 
+    # original:  laag (LO), midden1 (MAVO, LBO), midden2 (HAVO, VWO, MBO) en hoog (HBO, WO)
+    # source: https://monitorgezondheid.nl/sites/default/files/2021-06/20160914%20Opbouw%20en%20instructie%20totaalbestand%20Gezondheidsmonitor%202012.pdf
+  )
+```
+
+[Placeholder for Text]
+
+# Missing Values
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(
+    Surveynummer,
+    sex = is.na(sex),
+    education = is.na(education),
+    age = is.na(age),
+    weight = weight == 0
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  summarise(
+    bmi = sum(is.na(bmi)),
+    drinker_last_year = sum(is.na(drinker_last_year)),
+    exdrinker = sum(is.na(exdrinker)),
+    glasses_per_week = sum(is.na(glasses_per_week)),
+    roker = sum(is.na(roker)),
+    exroker = sum(is.na(exroker)),
+    nooitroker = sum(is.na(nooitroker))
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  mutate(
+    available = Surveynummer == 1 &
+      !is.na(sex) &
+      !is.na(education) &
+      !is.na(age) &
+      weight > 0
+  ) %>%
+  group_by(year) %>%
+  summarise(
+    available = sum(available),
+    missing = n() - sum(available),
+    fraction.available = sum(available) / n(),
+    fraction.missing = 1 - sum(available) / n(),
+    .groups = "drop"
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(
+    Surveynummer == 1,
+    !is.na(sex),
+    !is.na(education),
+    !is.na(age),
+    weight > 0
+  ) %>%
+  select(-Surveynummer)
+```
+
+[Placeholder for Text]
+
+# Verify Representativeness
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  filter(
+    age >= 25,
+    age < 75
+  ) %>%
+  group_by(year, sex) %>%
+  summarise(
+    population.size = sum(weight),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+population.by.year.sex.education.and.age %>%
+  filter(
+    year %in% c(2014, 2016, 2020),
+    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+  ) %>%
+  group_by(year, sex) %>%
+  summarise(
+    population.size = sum(population.size),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  filter(
+    age >= 25,
+    age < 75
+  ) %>%
+  group_by(year, education) %>%
+  summarise(
+    population.size = sum(weight),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+population.by.year.sex.education.and.age %>%
+  filter(
+    year %in% c(2014, 2016, 2020),
+    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+  ) %>%
+  group_by(year, education) %>%
+  summarise(
+    population.size = sum(population.size),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup() # Niet in weegmodel
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  filter(
+    age >= 25,
+    age < 75
+  ) %>%
+  group_by(
+    year,
+    age = cut(age, c(25, 35, 45, 55, 65, 75), include.lowest = TRUE, right = FALSE)
+  ) %>%
+  summarise(
+    population.size = sum(weight),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+population.by.year.sex.education.and.age %>%
+  filter(
+    year %in% c(2014, 2016, 2020),
+    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+  ) %>%
+  group_by(year, age) %>%
+  summarise(
+    population.size = sum(population.size),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = population.size / sum(population.size)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+# Clean BMI
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  filter(!is.na(bmi)) %>%
+  summarise(
+    above.65 = 100 * sum(bmi > 65) / n(),
+    above.70 = 100 * sum(bmi > 70) / n(),
+    above.75 = 100 * sum(bmi > 75) / n()
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(bmi = ifelse(bmi > 70, NA, bmi))
+```
+
+[Placeholder for Text]
+
+# Clean Alcohol
+
+[Placeholder for Text]
+
+## alcohol_status and drinker_last_year
+
+[Placeholder for Text]
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(
+    neverdrinker = case_when(
+      drinker_last_year == 0 & exdrinker == 0 ~ 1,
+      drinker_last_year == 1 & exdrinker == 0  ~ 0, 
+      drinker_last_year == 0 & exdrinker == 1 ~ 0 
+    )
+  )
+``` 
+
+[Placeholder for Text]
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
+  mutate(
+    alcohol_status = case_when(
+      neverdrinker == 1 ~ 1, 
+      drinker_last_year == 1 ~ 2, 
+      exdrinker == 1 ~ 3
+    )
+  )
+
+``` 
+
+[Placeholder for Text]
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
+  mutate(
+    drinker_last_year = case_when(
+      neverdrinker == 1 ~ 0, 
+      drinker_last_year == 1 ~ 1, 
+      exdrinker == 1 ~ 0
+    ), 
+    drinker_last_year = as.integer(drinker_last_year) 
+  )
+
+``` 
+
+## glasses_per_week
+
+Non-drinkers have NA for the number of glasses in the data. We replace this with zero glasses. 
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
+  mutate(
+    glasses_per_week = if_else(drinker_last_year == 1, glasses_per_week, 0)
+  )
+```
+
+## drinker_over_a_year
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
+  mutate(
+    drinker_over_a_week = case_when(
+      glasses_per_week == 0 ~ 0, 
+      glasses_per_week > 0 ~ 1
+    ), 
+    drinker_over_a_week = as.integer(drinker_over_a_week)
+  )
+```
+
+## Summary
+
+```{r} 
+gezondheidsmonitor.data %>% 
+  count(year, drinker_last_year, drinker_over_a_week, exdrinker, neverdrinker, alcohol_status)
+``` 
+
+# Clean Smoking
+
+[Placeholder for Text]
+
+```{r} 
+gezondheidsmonitor.data <- gezondheidsmonitor.data
+``` 
+
+[Placeholder for Text]
+
+# Explore
+
+Table \@ref(tab:Descriptive-Statistics-of-Gezondheidsmonitor) provides some descriptive statistics of the variables used which excludes some of the original data, removed in the cleaning process. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university. % Or move entire table to Clean script.
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop"
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year, sex) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.bmi = n.bmi / sum(n.bmi)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year, education) %>%
+  summarise(
+    n = n(),
+    n.bmi = sum(!is.na(bmi)),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = n / sum(n),
+    prevalence.bmi = n.bmi / sum(n.bmi)
+  ) %>%
+  ungroup()
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year) %>%
+  summarise(
+    min.age = min(age),
+    mean.age = mean(age),
+    max.age = max(age),
+    min.age.bmi = min(age[!is.na(bmi)]),
+    mean.age.bmi = mean(age[!is.na(bmi)]),
+    max.age.bmi = max(age[!is.na(bmi)]),
+    min.bmi = min(bmi, na.rm = TRUE),
+    mean.bmi = mean(bmi, na.rm = TRUE),
+    max.bmi = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(year, drinker_last_year, exdrinker)
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(year, roker, exroker, nooitroker)
+```
+
+[Placeholder for Text]
+
+# Write Output
+
+[Placeholder for Text]
+
+```{r}
+write_csv(gezondheidsmonitor.data, "../../Input Data/Risk Factors/Gezondheidsmonitor.csv")
+```
