@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Submitted\\Bibliography.bib
+bibliography: ../A Model of Individual BMI Trajectories.bib
 link-citations: yes
 ---
 
@@ -38,8 +38,8 @@ library(vtable)
 Let's load the Doetinchem dataset. Throughout the document, we will limit the output in each step. This is because the Doetinchem data are not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
 
 ```{r}
-doetinchem.data <- read_sas(
-  data_file = "../../2. Data Ruw/Doetinchem/doetcoh_lcdm_update.sas7bdat",
+doetinchem <- read_sas(
+  data_file = "../Input Data/Doetinchem/doetcoh_lcdm_update.sas7bdat",
   col_select = starts_with(
     c(
       "OPRNR",
@@ -649,8 +649,8 @@ Finally, we write the cleaned data for the Doetinchem Cohort Study to a CSV file
 
 ```{r}
 write_csv(
-  x = doetinchem.data,
-  file = "../../Input Data/Risk Factors/Doetinchem.csv"
+  x = doetinchem.pivot,
+  file = "../Output Data/Doetinchem.csv"
 )
 ```
 
