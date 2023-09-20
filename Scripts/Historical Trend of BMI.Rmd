@@ -336,9 +336,9 @@ Finally, we write the coefficients of our $\mu$ and $\sigma$ trend to a CSV file
 
 ```{r}
 write_csv(
-  estimated.bmi.trend.parameters.by.sex %>%
+  x = estimated.bmi.trend.parameters.by.sex %>%
     select(sex, mu.year, sigma.year),
-  "Historical Trend of BMI.csv"
+  file = "Historical Trend of BMI.csv"
 )
 ```
 

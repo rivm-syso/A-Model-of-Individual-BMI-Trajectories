@@ -28,7 +28,7 @@ This document analyses the individual trajectories of BMI of the adult populatio
 
 To model individual trajectories of BMI, we will first reduce the BMI values in the longitudinal datasets to z-scores. This is done by applying the transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html). An individual's trajectory is, then, a sequence of z-scores which indicate the positions relative to the population level distribution. We assume these z-scores follow stochastic trajectories containing long-term, medium-term and short-term effects. This will be described by a generalised autoregressive model and the BMI trajectories are those z-scores back-transformed to the original scale.
 
-Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021].
+Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021]. Finally, we set a seed to ensure that all runs of this document produce the same output.
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 source("../../Pipeline Configuration.R") # TODO: GitHub aanpassen
@@ -37,6 +37,7 @@ library(gamlss)
 library(splines)
 library(tidyverse)
 library(vtable)
+set.seed(456)
 ```
 
 # Load Data
@@ -49,13 +50,12 @@ In the analysis below, we will make use of the population level distribution par
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 population.level.distribution.parameters <- read_csv(
-  file = "Population Level Distribution and Historical Trend of BMI.csv",
+  file = "Population Level Distribution of BMI.csv",
   col_type = cols(
     "sex" = col_factor(),
     .default = col_double()
   )
-) %>%
-  select(-contains("year")) # TODO: GitHub aanpassen
+)
 population.level.distribution.parameters
 ```
 
@@ -65,13 +65,12 @@ We will also make use of the historical trend parameters which were previously e
 
 ```{r}
 historical.trend.parameters <- read_csv(
-  file = "Population Level Distribution and Historical Trend of BMI.csv",
+  file = "Historical Trend of BMI.csv",
   col_type = cols(
     "sex" = col_factor(),
     .default = col_double()
   )
-) %>%
-  select(sex, contains("year")) # TODO: GitHub aanpassen
+)
 historical.trend.parameters
 ```
 
@@ -726,9 +725,9 @@ The simulation study in the document [_Generalised-Autoregressive-Model.html_](.
 Let's now examine some of the resulting trajectories. As mentioned above, a commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. Our approach models the fluctuation over time and we can easily generate some z-score trajectories for both approaches using the functions from the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html). These are, then, transformed to BMI trajectories, following [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
 
 ```{r}
-seed <- round(1000 * runif(1))
+# seed <- round(1000 * runif(1))
 seed <- 997
-set.seed(seed)
+# set.seed(seed)
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
   filter(sex == 0) %>%
   expand_grid(type = ordered(c("Fixed-percentile method", "Our autoregressive model"), levels = c("Fixed-percentile method", "Our autoregressive model"))) %>%
@@ -801,15 +800,15 @@ ggsave(
 As a way to validate the results from our model, we can generate z-score trajectories and visually compare these to the data of a few individuals in the Doetinchem and LISS datasets.
 
 ```{r}
-seed <- round(1000 * runif(1))
+# seed <- round(1000 * runif(1))
 seed <- 625
-set.seed(seed)
+# set.seed(seed)
 generated.zscore.trajectories <- bmi.trajectory.parameters %>%
   expand_grid(source = c("Doetinchem", "LISS")) %>%
   group_by(source, sex) %>%
   group_modify(
     ~ generate.population.with.generalised.autoregressive.values(
-      n.participants = 10,
+      n.participants = 9,
       n.time.steps = c(Doetinchem = 6, LISS = 14)[.y$source],
       time.step.size = c(Doetinchem = 5, LISS = 1)[.y$source],
       sd.random.intercept = .x$sd.random.intercept,
@@ -819,7 +818,6 @@ generated.zscore.trajectories <- bmi.trajectory.parameters %>%
     )
   ) %>%
   ungroup() %>%
-  mutate(participant.id = paste0(source, sex, participant.id)) %>%
   rename(zscore = value)
 head(generated.zscore.trajectories)
 ```
@@ -832,10 +830,10 @@ longitudinal.bmi.sample <- longitudinal.bmi.data %>%
   filter(n() == c(Doetinchem = 6, LISS = 14)[source]) %>%
   nest() %>%
   ungroup(participant.id) %>%
-  slice_sample(n = 10) %>%
+  slice_sample(n = 9) %>%
+  mutate(participant.id = seq(n())) %>%
   unnest(data) %>%
-  ungroup() %>%
-  mutate(participant.id = paste0(source, sex, participant.id))
+  ungroup()
 longitudinal.bmi.sample
 ```
 
@@ -847,8 +845,7 @@ ggplot(
   mapping = aes(
     x = wave,
     y = zscore,
-    group = participant.id,
-    col = participant.id
+    col = interaction(sex, participant.id)
   ),
   data = longitudinal.bmi.sample %>%
     mutate(type = "Observed") %>%
@@ -1099,8 +1096,8 @@ Finally, we write the parameters of our trajectories to a CSV file.
 
 ```{r}
 write_csv(
-  bmi.trajectory.parameters,
-  "Individual Trajectories of BMI.csv"
+  x = bmi.trajectory.parameters,
+  file = "Individual Trajectories of BMI.csv"
 )
 ```
 

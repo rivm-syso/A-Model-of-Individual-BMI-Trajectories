@@ -29,7 +29,7 @@ Before we begin, we need to load the helper script [_Generalised Autoregressive 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 source("Generalised Autoregressive Model.R")
 library(tidyverse)
-set.seed(1234)
+set.seed(456)
 ```
 
 # Generate Data Iteratively
