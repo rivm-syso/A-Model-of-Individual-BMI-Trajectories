@@ -861,17 +861,6 @@ bmi.parametric.plot
 ```
 <center>Figure 11</center>
 
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Population Level Distribution Parameters.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
-
 It can be helpful to visualise the distribution parameters as functions of sex, level of education and age together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (11)](#fig:BMI-Distribution-Parameters), resulting in [figure (12)](#fig:BMI-Distribution-Parameters-with-Labels).
 
 <a id="fig:BMI-Distribution-Parameters-with-Labels"/>
@@ -1060,17 +1049,6 @@ ggplot() +
   )
 ```
 <center>Figure 14</center>
-
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Population Level Prevalences.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
 
 # Write Output
 

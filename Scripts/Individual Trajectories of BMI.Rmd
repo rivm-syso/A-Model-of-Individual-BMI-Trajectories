@@ -617,17 +617,6 @@ covariance.by.time.difference.plot +
 ```
 <center>Figure 6</center>
 
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Covariance By Time Difference.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
-
 Additionally, we can add the values of the coefficients to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels-And-Values).
 
 <a id="fig:Covariance-By-Time-Difference-With-Labels-And-Values"/>
@@ -782,17 +771,6 @@ ggplot() +
 ```
 <center>Figure 8</center>
 
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Individual Trajectories.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
-
 # Validation
 
 ## Trajectories
@@ -871,17 +849,6 @@ ggplot(
   )
 ```
 <center>Figure 9</center>
-
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Individual Z-Score Trajectories.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
 
 ## Transition Matrix
 
@@ -1008,17 +975,6 @@ ggplot(
   )
 ```
 <center>Figure 10</center>
-
-This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Transition Matrices.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
 
 ## Standard Deviation
 

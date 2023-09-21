@@ -287,16 +287,7 @@ ggplot() +
 ```
 <center>Figure 2</center>
 
-Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters, this need not imply that the prevalences of overweight and obesity follow a straight line. This figure is saved for use in the article.
-
-```{r}
-ggsave(
-  file = "R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Figures\\Historical Trend.pdf",
-  width = 260,
-  height = 130,
-  units = "mm"
-)
-```
+Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters, this need not imply that the prevalences of overweight and obesity follow a straight line.
 
 Let's also create a plot of the resulting BMI distribution by year and sex. As previously mention, the trend in overweight and obesity is, in part, due to an increase in the spread of the BMI distribution, which can clearly be seen in [figure (3)](#fig:BMI-Distribution-by-Year).
 
