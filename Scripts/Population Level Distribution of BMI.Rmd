@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: ../A Model of Individual BMI Trajectories.bib
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
 link-citations: yes
 ---
 
@@ -26,7 +26,7 @@ In this series of documents, we create a risk factor model of BMI for micro-simu
 
 This document analyses the population level distribution of BMI of the adult population of the Netherlands in 2012. Other documents include [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
 
-Before we begin, we need to load the packages _gamlss_, _splines_, _tidyverse_, _gganimate_, _gifski_, _ggbreak_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @gganimate2020; @gifski2022; @ggbreak2021; @vtable2021]. 
+Before we begin, we need to load the packages _gamlss_, _splines_, _tidyverse_, _gganimate_, _gifski_, _ggbreak_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @gganimate2020; @gifski2022; @ggbreak2021; @vtable2021].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 library(gamlss)
