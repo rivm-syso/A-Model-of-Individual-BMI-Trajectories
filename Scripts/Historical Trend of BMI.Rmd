@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: ../A Model of Individual BMI Trajectories.bib
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
 link-citations: yes
 ---
 
@@ -341,9 +341,9 @@ Finally, we write the coefficients of our $\mu$ and $\sigma$ trend to a CSV file
 
 ```{r}
 write_csv(
-  estimated.bmi.trend.parameters.by.sex %>%
+  x = estimated.bmi.trend.parameters.by.sex %>%
     select(sex, mu.year, sigma.year),
-  "../Output Data/Historical Trend of BMI.csv"
+  file = "../Output Data/Historical Trend of BMI.csv"
 )
 ```
 
