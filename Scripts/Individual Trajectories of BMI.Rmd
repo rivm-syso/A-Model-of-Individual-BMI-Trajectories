@@ -455,7 +455,7 @@ bmi.trajectory.parameters %>%
   )
 ```
 
-Note that the three variances add up to one. Presented this was, the values for the three variances indicate the relative contribution of the long-term, medium-term and short-term effects. Implicitly, we have assumed that these relative contributions do not depend on characteristics such as level of education or age. The time constant indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value. The more time has passed, the lower the covariance between two values, as seen in the table below.
+Note that the three variances add up to one. Presented this was, the values for the three variances indicate the relative contributions of the long-term, medium-term and short-term effects. Implicitly, we have assumed that these relative contributions do not depend on characteristics such as level of education or age. The time constant indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value. The more time has passed, the lower the covariance between two values, as seen in the table below.
 
 ```{r}
 covariance.between.times <- bmi.trajectory.parameters %>%
