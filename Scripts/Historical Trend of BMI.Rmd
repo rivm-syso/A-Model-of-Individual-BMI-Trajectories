@@ -288,7 +288,8 @@ ggplot() +
     name = "Modelled",
     labels = c(expression(25 <= {BMI < 30}), expression(30 <= BMI))
   ) +
-  expand_limits(y = 0)
+  expand_limits(y = 0) +
+  theme(legend.text.align = 0)
 ```
 <center>Figure 2</center>
 
