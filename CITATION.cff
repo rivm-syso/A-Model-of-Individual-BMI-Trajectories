@@ -1,0 +1,37 @@
+cff-version: 1.2.0
+title: A Model of Individual BMI Trajectories
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Laurens
+    family-names: Bogaardt
+    email: laurens.bogaardt@rivm.nl
+    affiliation: National Institute for Public Health and the Environment (RIVM)
+    orcid: 'https://orcid.org/0000-0002-7712-6627'
+abstract: >-
+  A risk factor model of BMI is an important building block
+  of health simulations aimed at estimating government
+  policy effects with regard to overweight and obesity. We
+  created a model which generates representative population
+  level distributions and which also mimics realistic BMI
+  trajectories at an individual level so that policies aimed
+  at individuals can be simulated. The model is constructed
+  by combining several datasets. First, the population level
+  distribution is extracted from a large, cross-sectional
+  dataset. The trend in this distribution is estimated from
+  historical data. In addition, longitudinal data is used to
+  model how individuals move along typical trajectories over
+  time. The model faithfully describes the population level
+  distribution of BMI, stratified by sex, level of education
+  and age. It is able to generate life course trajectories
+  for individuals which seem plausible but it does not
+  capture extreme fluctuations, such as rapid weight loss.
+keywords:
+  - micro-simulation
+  - risk factor
+  - BMI
+  - life course
+  - individual trajectories
+license: GPL-3.0

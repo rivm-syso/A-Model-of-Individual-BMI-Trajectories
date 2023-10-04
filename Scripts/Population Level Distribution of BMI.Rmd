@@ -201,7 +201,7 @@ ggplot() +
 
 ## Sex
 
-We are creating a risk factor model of BMI with the purpose of facilitating government policy simulations. For such simulations, it is helpful to be able to stratify the population by sex, level of education and age. These variables are also included in the Public Health Monitor dataset. For completeness, let's run through all combinations of these three characteristics, starting with sex.
+We are creating a risk factor model of BMI with the purpose of facilitating government policy analyses. For such simulations, it is helpful to be able to stratify the population by sex, level of education and age. These variables are also included in the Public Health Monitor dataset. For completeness, let's run through all combinations of these three characteristics, starting with sex.
 
 ```{r}
 bmi.parameters.by.sex <- bmi.data %>%

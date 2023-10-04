@@ -238,7 +238,7 @@ ggplot() +
   ) +
   scale_colour_discrete(
     name = "Sex",
-    labels = c("Male", "Female")
+    labels = c("0" = "Male", "1" = "Female")
   ) +
   facet_wrap(~ source)
 ```
@@ -270,7 +270,7 @@ ggplot(
   ) +
   scale_colour_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   ) +
   facet_wrap(
     facets = vars(sex),
@@ -306,7 +306,7 @@ ggplot(
   ) +
   scale_colour_discrete(
     name = "Age",
-    labels = c("40-", "40-60", "60+")
+    labels = c("(0,40]" = "40-", "(40,60]" = "40-60", "(60,Inf]" = "60+")
   ) +
   facet_wrap(
     facets = vars(sex),
@@ -447,6 +447,10 @@ bmi.trajectory.parameters %>%
 
 As mentioned in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html), an autoregressive process can be viewed in two ways. The first shows how a trajectory evolves over time, as a build-up of successive shocks which decay over time, whereas the other can be interpreted as directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories. The parameters we have seen so far align more with the first interpretation of the mechanism. But it is easy to transform the values to align with the latter view.
 
+the methods in this section can be interpreted as a way of directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories.
+
+The time constant is related to $\phi_{0}$ via [equation (7)](#eq:get.time.constant) and indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value.
+
 ```{r}
 bmi.trajectory.parameters %>%
   group_by(sex) %>%
@@ -519,7 +523,7 @@ covariance.by.time.difference.plot <- ggplot(
   ) +
   scale_colour_discrete(
     name = "Sex",
-    labels = c("Male", "Female")
+    labels = c("0" = "Male", "1" = "Female")
   )
 covariance.by.time.difference.plot
 ```
@@ -815,7 +819,7 @@ longitudinal.bmi.sample <- longitudinal.bmi.data %>%
 longitudinal.bmi.sample
 ```
 
-Although it depends on the precise random samples which are drawn, [figure (9)](#fig:Individual-Z-Score-Trajectories) shows that, on the face of it, the generated z-scores and the observed data are comparable. This give credence to our idea that modelling z-scores using a generalised autoregressive model with an AR1 process yields realistic BMI trajectories. [Figure (9)](#fig:Individual-Z-Score-Trajectories) also shows a few individuals who drastically lose weight over time. Such outlying transitions are not captured by our model, but this need not be a problem as long as it captures the majority of the heterogeneity in the trajectories. Most government policy is aimed at typical individuals with typical trajectories, such as those in our model.
+Although it depends on the precise random samples which are drawn, [figure (9)](#fig:Individual-Z-Score-Trajectories) shows that, on the face of it, the generated z-scores and the observed data are comparable. This give credence to our idea that modelling z-scores using a generalised autoregressive process yields realistic BMI trajectories. [Figure (9)](#fig:Individual-Z-Score-Trajectories) also shows a few individuals who drastically lose weight over time. Such outlying transitions are not captured by our model, but this need not be a problem as long as it captures the majority of the heterogeneity in the trajectories. Most government policy is aimed at typical individuals with typical trajectories, such as those in our model.
 
 <a id="fig:Individual-Z-Score-Trajectories"/>
 ```{r}
@@ -881,8 +885,8 @@ model.transitions <- longitudinal.bmi.data %>%
   ) %>%
   group_by(source, participant.id, sex, time, next.time) %>%
   reframe(
-    bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf]"), each = 4),
-    next.bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf]"), times = 4),
+    bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf)"), each = 4),
+    next.bmi.category = rep(c("[0,18.5)", "[18.5,25)", "[25,30)", "[30,Inf)"), times = 4),
     lower.z.score = sinh(tau * asinh((rep(c(0, 18.5, 25, 30), each = 4) - mu) / (sigma * tau)) - nu),
     upper.z.score = sinh(tau * asinh((rep(c(18.5, 25, 30, Inf), each = 4) - mu) / (sigma * tau)) - nu),
     next.lower.z.score = sinh(tau * asinh((rep(c(0, 18.5, 25, 30), times = 4) - next.mu) / (next.sigma * tau)) - nu),
@@ -920,7 +924,7 @@ Let's now count the observed transitions for all individuals in the longitudinal
 ```{r}
 observed.transitions <- longitudinal.bmi.data %>%
   mutate(
-    bmi.category = cut(bmi, c(0, 18.5, 25, 30, Inf), include.lowest = TRUE, right = FALSE)
+    bmi.category = cut(bmi, c(0, 18.5, 25, 30, Inf), right = FALSE)
   ) %>%
   group_by(participant.id) %>%
   mutate(
@@ -959,10 +963,20 @@ ggplot(
   geom_text() +
   scale_fill_viridis_c(trans = "sqrt") +
   scale_x_discrete(
-    labels = c(expression(BMI < 18.5), expression(18.5 <= {BMI < 25}), expression(25 <= {BMI < 30}), expression(30 <= BMI))
+    labels = c(
+      "[0,18.5)" = expression(BMI < 18.5),
+      "[18.5,25)" = expression(18.5 <= {BMI < 25}),
+      "[25,30)" = expression(25 <= {BMI < 30}),
+      "[30,Inf)" = expression(30 <= BMI)
+    )
   ) +
   scale_y_discrete(
-    labels = c(expression(BMI < 18.5), expression(18.5 <= {BMI < 25}), expression(25 <= {BMI < 30}), expression(30 <= BMI))
+    labels = c(
+      "[0,18.5)" = expression(BMI < 18.5),
+      "[18.5,25)" = expression(18.5 <= {BMI < 25}),
+      "[25,30)" = expression(25 <= {BMI < 30}),
+      "[30,Inf)" = expression(30 <= BMI)
+    )
   ) +
   guides(fill = "none") +
   labs(
