@@ -39,7 +39,7 @@ Historical data related to BMI were assessed by Statistics Netherlands and the N
 
 ```{r}
 bmi.by.year.and.sex <- read_csv(
-  file = "../Output Data/VZinfo.csv",
+  file = "../Output-Data/VZinfo.csv",
   col_types = cols(
     date = col_date(),
     sex = col_factor(levels = c("0", "1")),
@@ -55,7 +55,7 @@ In the analysis below, we will also need the $\nu$ and $\tau$ parameters which w
 
 ```{r}
 bmi.parameters.by.sex <- read_csv(
-  file = "../Output Data/Population Level Distribution of BMI.csv",
+  file = "../Output-Data/Population-Level-Distribution-of-BMI.csv",
   col_types = cols_only(
     sex = col_factor(levels = c("0", "1")),
     nu = col_double(),
@@ -297,7 +297,7 @@ Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters
 
 ```{r}
 ggsave(
-  file = "../Figures/Historical Trend.pdf",
+  file = "../Figures/Historical-Trend.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -344,7 +344,7 @@ Finally, we write the coefficients of our $\mu$ and $\sigma$ trend to a CSV file
 write_csv(
   x = estimated.bmi.trend.parameters.by.sex %>%
     select(sex, mu.year, sigma.year),
-  file = "../Output Data/Historical Trend of BMI.csv"
+  file = "../Output-Data/Historical-Trend-of-BMI.csv"
 )
 ```
 

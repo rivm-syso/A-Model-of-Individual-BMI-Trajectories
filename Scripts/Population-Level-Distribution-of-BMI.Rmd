@@ -48,7 +48,7 @@ In the chunk below, we have limited the output. This is because the Public Healt
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 bmi.data <- read_csv(
-  file = "../Output Data/Gezondheidsmonitor.csv",
+  file = "../Output-Data/Gezondheidsmonitor.csv",
   col_types = cols_only(
     year = col_integer(),
     sex = col_factor(levels = c("0", "1")),
@@ -872,7 +872,7 @@ This figure is saved for use in the article.
 
 ```{r}
 ggsave(
-  file = "../Figures/Population Level Distribution Parameters.pdf",
+  file = "../Figures/Population-Level-Distribution-Parameters.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -1192,7 +1192,7 @@ Finally, we write the coefficients of our parametric model to a CSV file.
 ```{r}
 write_csv(
   x = bmi.parametric.coefficients,
-  file = "../Output Data/Population Level Distribution of BMI.csv"
+  file = "../Output-Data/Population-Level-Distribution-of-BMI.csv"
 )
 ```
 

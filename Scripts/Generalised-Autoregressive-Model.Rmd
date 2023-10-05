@@ -27,7 +27,7 @@ This document describes a generalised autoregressive model and explains how to g
 Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the package _tidyverse_ to describe the functions contained in the helper script [@tidyverse2019]. Finally, we set a seed to ensure that all runs of this document produce the same output.
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
-source("Generalised Autoregressive Model.R")
+source("Generalised-Autoregressive-Model.R")
 library(tidyverse)
 set.seed(456)
 ```

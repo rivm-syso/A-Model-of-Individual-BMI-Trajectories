@@ -31,7 +31,7 @@ library(tidyverse)
 
 ```{r}
 trend.volwassenen.met.obesitas <- read_delim(
-  file = "../Input Data/VZinfo/trend-volwassenen-met-ob.csv",
+  file = "../Input-Data/VZinfo/trend-volwassenen-met-ob.csv",
   delim = ";",
   col_types = cols_only(
     "Category" = col_integer(),
@@ -52,7 +52,7 @@ trend.volwassenen.met.obesitas
 
 ```{r}
 trend.volwassenen.met.overgewicht <- read_delim(
-  file = "../Input Data/VZinfo/trend-volwassenen-met-ov.csv",
+  file = "../Input-Data/VZinfo/trend-volwassenen-met-ov.csv",
   delim = ";",
   col_types = cols_only(
     "Category" = col_integer(),
@@ -124,7 +124,7 @@ bmi.by.year.and.sex
 ```{r}
 write_csv(
   x = bmi.by.year.and.sex,
-  file = "../Output Data/VZinfo.csv"
+  file = "../Output-Data/VZinfo.csv"
 )
 ```
 
