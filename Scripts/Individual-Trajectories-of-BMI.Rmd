@@ -31,7 +31,7 @@ To model individual trajectories of BMI, we will first reduce the BMI values in 
 Before we begin, we need to load the helper script [_Generalised Autoregressive Model.R_](./../../../Utilities/Generalised Autoregressive Model.R) containing several functions related to the generalised autoregressive model. This script loads the packages _nlme_ and _mnormt_ [@nlme2021; @mnormt2022]. In this document, we also use the packages _gamlss_, _splines_, _tidyverse_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @vtable2021]. Finally, we set a seed to ensure that all runs of this document produce the same output.
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
-source("Generalised Autoregressive Model.R")
+source("Generalised-Autoregressive-Model.R")
 library(gamlss)
 library(splines)
 library(tidyverse)
@@ -49,7 +49,7 @@ In the analysis below, we will make use of the population level distribution par
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 population.level.distribution.parameters <- read_csv(
-  file = "../Output Data/Population Level Distribution of BMI.csv",
+  file = "../Output-Data/Population-Level-Distribution-of-BMI.csv",
   col_type = cols(
     sex = col_factor(levels = c("0", "1")),
     .default = col_double()
@@ -64,7 +64,7 @@ We will also make use of the historical trend parameters which were previously e
 
 ```{r}
 historical.trend.parameters <- read_csv(
-  file = "../Output Data/Historical Trend of BMI.csv",
+  file = "../Output-Data/Historical-Trend-of-BMI.csv",
   col_type = cols(
     sex = col_factor(levels = c("0", "1")),
     .default = col_double()
@@ -81,7 +81,7 @@ Throughout the document, we will limit the output in each step. This is because 
 
 ```{r}
 doetinchem.data <- read_csv(
-  file = "../Output Data/Doetinchem.csv",
+  file = "../Output-Data/Doetinchem.csv",
   col_type = cols_only(
     participant.id = col_character(),
     sex = col_factor(levels = c("0", "1")),
@@ -104,7 +104,7 @@ The dataset loaded here is a cleaned version, which was processed in the documen
 
 ```{r}
 liss.data <- read_csv(
-  file = "../Output Data/LISS.csv",
+  file = "../Output-Data/LISS.csv",
   col_type = cols_only(
     participant.id = col_character(),
     sex = col_factor(levels = c("0", "1")),
@@ -617,7 +617,7 @@ This figure is saved for use in the article.
 
 ```{r}
 ggsave(
-  file = "../Figures/Covariance By Time Difference.pdf",
+  file = "../Figures/Covariance-By-Time-Difference.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -789,7 +789,7 @@ This figure is saved for use in the article.
 
 ```{r}
 ggsave(
-  file = "../Figures/Individual Trajectories.pdf",
+  file = "../Figures/Individual-Trajectories.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -876,7 +876,7 @@ This figure is saved for use in the article.
 
 ```{r}
 ggsave(
-  file = "../Figures/Individual Z-Score Trajectories.pdf",
+  file = "../Figures/Individual-Z-Score-Trajectories.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -1027,7 +1027,7 @@ This figure is saved for use in the article.
 
 ```{r}
 ggsave(
-  file = "../Figures/Transition Matrices.pdf",
+  file = "../Figures/Transition-Matrices.pdf",
   width = 260,
   height = 130,
   units = "mm"
@@ -1106,7 +1106,7 @@ Finally, we write the parameters of our trajectories to a CSV file.
 ```{r}
 write_csv(
   x = bmi.trajectory.parameters,
-  file = "../Output Data/Individual Trajectories of BMI.csv"
+  file = "../Output-Data/Individual-Trajectories-of-BMI.csv"
 )
 ```
 

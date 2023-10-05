@@ -59,7 +59,7 @@ gezondheidsmonitor.data <- read_sav(
   mutate(year = 2012) %>%
   bind_rows(
     read_sav(
-      file = "../Input Data/Gezondheidsmonitor/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
+      file = "../Input-Data/Gezondheidsmonitor/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
       col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA201", "LFALA202", "alc_week","LFRKA205", "LFRKA206", "LFRKA207")
     ) %>%
       zap_labels() %>%

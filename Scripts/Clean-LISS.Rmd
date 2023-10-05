@@ -74,7 +74,7 @@ background.data <- map(
     "avars_202112_EN_1.1p.sav"
   ),
   .f = ~ read_sav(
-    file = paste0("../Input Data/LISS/", .),
+    file = paste0("../Input-Data/LISS/", .),
     col_select = c("nomem_encr", "wave", "geslacht", "gebjaar", "oplcat", "leeftijd")
   ) %>%
     zap_labels() %>%
@@ -113,7 +113,7 @@ health.data <- map(
     "ch21n_EN_1.0p.sav"
   ),
   .f = ~ read_sav(
-    file = paste0("../Input Data/LISS/", .),
+    file = paste0("../Input-Data/LISS/", .),
     col_select = ends_with(
       c(
         "nomem_encr",

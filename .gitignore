@@ -1,5 +1,5 @@
-Input Data/*
-Output Data/Gezondheidsmonitor.csv
-Output Data/Doetinchem.csv
-Output Data/LISS.csv
+Input-Data/*
+Output-Data/Gezondheidsmonitor.csv
+Output-Data/Doetinchem.csv
+Output-Data/LISS.csv
 *.synctex.gz
