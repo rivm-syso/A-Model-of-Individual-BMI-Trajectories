@@ -945,7 +945,7 @@ observed.transitions <- longitudinal.bmi.data %>%
 observed.transitions
 ```
 
-As seen in [figure (10)](#fig:Transition-Matrices), the model approaches the observed transition rates between the four BMI categories, but overestimates the fluctuations which occur for higher BMI values. This indicates that not all aspects of the life course trajectories are being reproduced but that a large part of the relevant dynamics is indeed captured by our model. The differences seen between Doetinchem and LISS are mostly due to the different time intervals between measurements, where Doetinchem was recorded about every 5 years and LISS approximately every year.
+As seen in [figure (10)](#fig:Transition-Matrices), the model approaches the observed transition rates between the four BMI categories but overestimates the fluctuations which occur for higher BMI values. This indicates that not all aspects of the life course trajectories are being reproduced, but that a large part of the relevant dynamics is indeed captured by our model. The differences seen between Doetinchem and LISS are mostly due to the different time intervals between measurements, where the Doetinchem data were recorded about every 5 years and the LISS data approximately every year.
 
 <a id="fig:Transition-Matrices"/>
 ```{r}
@@ -992,7 +992,7 @@ ggplot(
 
 ## Standard Deviation
 
-[Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals whose BMI changes drastically over time, whereas [figure (10)](#fig:Transition-Matrices) suggests that our model overestimates the transitions which occur. Clearly, the amount by which the values within the observed trajectories fluctuate differ with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [Figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by sampling several new trajectories for each individual.
+[Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals who drastically gain- and lose weight over time. Such outlying transitions are not captured by our model. Contrarily, [figure (10)](#fig:Transition-Matrices) suggests our model slightly overestimates the amount of fluctuation which occurs for higher BMI values. It seems that the amount by which the values within the observed trajectories fluctuate differ with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [Figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by sampling several new trajectories for each individual.
 
 ```{r}
 model.standard.deviation <- longitudinal.bmi.data %>%
@@ -1017,15 +1017,10 @@ model.standard.deviation <- longitudinal.bmi.data %>%
   )
 head(model.standard.deviation)
 ```
-[Figure (11)](#fig:Standard-Deviation) shows the resulting distributions of the standard deviation, which shows a discrepancy between the observation and the prediction. In part due to the fact that we have combined that Doetinchem and LISS datasets and created a model which . Additionally, we modelled the mean but discarded these coefficients. And, finally, we normalised our coefficients such that they produced z-scores with unit standard deviation. 
 
+[Figure (11)](#fig:Standard-Deviation) shows the resulting distributions of the standard deviation, which shows a discrepancy between the observation and the prediction. There are a few reasons why this comparison is not entirely fair. First, remember that we combined the Doetinchem and LISS datasets and fitted a model to the joined dataset. Additionally, we included a fixed intercept but discarded these coefficients. And, finally, we normalised our coefficients such that they produced z-scores with unit standard deviation.
 
-
- the fact that the BMI values in LISS are self-reported, which often results in unrealistically stable values. We note this as a limitation for future concern.
-
-Such outlying transitions are not captured by our model, but this need not be a problem as long as it captures the majority of the heterogeneity in the trajectories. Most government policy is aimed at typical individuals with typical trajectories, such as those in our model.
-
-Individuals with the same sex, level of education and age can still have vastly different trajectories of BMI. Such heterogeneity is the result of various stochastic elements which determine a life course and our model needs to be able to capture this. It may even be possible to identify subgroups with fundamentally different behaviour. For example, it has been suggested that fussy eaters follow different BMI trajectories from people who are less choosy [@Herle2020]. This leads to growth mixture models where each subgroup's behaviour is determined by a separate model. However, we will assume all individual life course trajectories can be captured by the same mechanism, where three stochastic elements form the source of individual variations.
+However, this will not explain the type of discrepancy that we see in [figure (11)](#fig:Standard-Deviation). It seems the modelled variance of the standard deviation, so the amount of fluctuation in typical trajectories, is smaller than what is observed in the data. It may simply be the case that there is a part of the population who have a particularly stable BMI and another whose BMI changes more rapidly. We had assumed the model's parameters, which produce mildly fluctuating trajectories, hold true for the entire population and that the three stochastic elements form the source of individual variations. There may be additional heterogeneity which is not captured by our model. Future work could possibly extend the model using a growth mixture model where one subgroup follows fairly stable trajectories and another subgroup produces larger variations over time [@Herle2020]. Regardless, our risk factor model already captures the majority of the heterogeneity within and between individual trajectories, and certainly more than the fixed-percentile method does. Modelling these dynamics correctly can be important when the relationship between a risk factor and a disease is simulated. Many such relationships are non-linear and an individual whose BMI fluctuates wildly can experience a different cumulative risk than one who follows a stable trajectory, even when their mean is similar [@Murray2020].
 
 <a id="fig:Standard-Deviation"/>
 ```{r}
