@@ -101,8 +101,8 @@ bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
       "ongestand." = 0,
       "gestand.*" = 1
     ),
-    `prevalence_[25,30)` = (`prevalence_[25,Inf)` - `prevalence_[30,Inf)`) / 100,
-    `prevalence_[30,Inf)` = `prevalence_[30,Inf)` / 100
+    `prevalence_[25,30)` = round((`prevalence_[25,Inf)` - `prevalence_[30,Inf)`) / 100, 3),
+    `prevalence_[30,Inf)` = round(`prevalence_[30,Inf)` / 100, 3)
   ) %>%
   pivot_longer(
     cols = c("prevalence_[25,30)", "prevalence_[30,Inf)"),
