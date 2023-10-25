@@ -12,7 +12,7 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:/Projecten/V02001214 KV2.1.B CZmodellering/6. Producten/2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories/Bibliography.bib
+bibliography: R:/Projecten/V02001214 KV2.1.B CZmodellering/6. Producten/2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories/Submitted/Bibliography.bib
 link-citations: yes
 ---
 
