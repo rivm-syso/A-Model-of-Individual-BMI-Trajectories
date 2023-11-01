@@ -16,10 +16,15 @@ bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
 link-citations: yes
 ---
 
+<style>
+body{text-align: justify}
+</style>
+
 # Introduction
 
-Before we begin, we will need to load some packages.
-[@tidyverse2019].
+The purpose of this document is to clean and explore the historical BMI data of VZinfo. Historical data about BMI were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography.
+
+Before we begin, we need to load the package _tidyverse_ [@tidyverse2019].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 library(tidyverse)
@@ -27,26 +32,7 @@ library(tidyverse)
 
 # Load Input
 
-[Placeholder for Text]
-
-```{r}
-trend.volwassenen.met.obesitas <- read_delim(
-  file = "../Input-Data/VZinfo/trend-volwassenen-met-ob.csv",
-  delim = ";",
-  col_types = cols_only(
-    "Category" = col_integer(),
-    "mannen gestand.*" = col_double(),
-    "vrouwen gestand.*" = col_double()
-  )
-)
-trend.volwassenen.met.obesitas
-```
-
-[Placeholder for Text]
-
-## Geslacht Trend Volwassenen met Overgewicht
-
-[Placeholder for Text]
+The historical BMI data of VZinfo comes in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
 
 ```{r}
 trend.volwassenen.met.overgewicht <- read_delim(
@@ -61,11 +47,24 @@ trend.volwassenen.met.overgewicht <- read_delim(
 trend.volwassenen.met.overgewicht
 ```
 
-[Placeholder for Text]
+Let's now load the dataset containing the prevalences of obesity over time.
+
+```{r}
+trend.volwassenen.met.obesitas <- read_delim(
+  file = "../Input-Data/VZinfo/trend-volwassenen-met-ob.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "mannen gestand.*" = col_double(),
+    "vrouwen gestand.*" = col_double()
+  )
+)
+trend.volwassenen.met.obesitas
+```
 
 # Clean Data
 
-[Placeholder for Text]
+We clean the data by first pivoting the datasets such that we obtain a one column with the prevalences and a new column indicating whether this applies to males of females. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
 
 ```{r}
 bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
@@ -106,11 +105,9 @@ bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
 bmi.by.year.and.sex
 ```
 
-[Placeholder for Text]
-
 # Write Output
 
-[Placeholder for Text]
+Finally, we write the cleaned data of VZinfo to a CSV file.
 
 ```{r}
 write_csv(
@@ -119,4 +116,6 @@ write_csv(
 )
 ```
 
-[Placeholder for Text]
+# References
+
+<div id="refs"></div>
