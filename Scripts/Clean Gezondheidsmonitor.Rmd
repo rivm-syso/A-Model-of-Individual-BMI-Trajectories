@@ -1,5 +1,5 @@
 ---
-title: "Clean and Explore Gezondheidsmonitor Volwassenen 2012"
+title: "Clean and Explore Gezondheidsmonitor Volwassenen"
 author: "Laurens Bogaardt"
 date: "2023-02-01"
 output:
@@ -12,9 +12,13 @@ output:
     toc_float: true
     theme: united
     code_folding: show
-bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Bibliography.bib
+bibliography: R:\\Projecten\\V02001214 KV2.1.B CZmodellering\\6. Producten\\2022-08-15 - Mathematical Medicine and Biology - A Model of Individual BMI Trajectories\\Submitted\\Bibliography.bib
 link-citations: yes
 ---
+
+<style>
+body{text-align: justify}
+</style>
 
 # Introduction
 
@@ -31,25 +35,29 @@ library(haven)
 
 [Placeholder for Text]
 
-# Load Data
+# Load Input
 
 [Placeholder for Text]
 
 ```{r}
 population.by.year.sex.education.and.age <- read_csv(
-  file = "../CBS/Demografie/Bevolkingsgrootte/Population by Year, Sex, Education and Age.csv",
+  file = "../CBS/Demography/Population Size by Date, Sex, Education and Age.csv",
   col_type = cols_only(
-    year = col_integer(),
+    date = col_date(),
     sex = col_factor(),
     education = col_factor(),
-    age = col_factor(),
+    age_lower = col_double(),
+    age_upper = col_double(),
     population.size = col_integer()
   )
 )
 population.by.year.sex.education.and.age
 ```
 
-[Placeholder for Text]
+Education was measured as the highest level reached and categorised into three levels. The lowest level
+applies to people with intermediate secondary education or less, the medium level aggregates higher
+secondary- and intermediate vocational education and highest level includes higher vocational education
+and university.
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
@@ -220,10 +228,11 @@ gezondheidsmonitor.data %>%
 ```{r}
 population.by.year.sex.education.and.age %>%
   filter(
-    year %in% c(2014, 2016, 2020),
-    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+    year(date) %in% c(2014, 2016, 2020),
+    age_lower >= 25,
+    age_upper <= 75
   ) %>%
-  group_by(year, sex) %>%
+  group_by(year = year(date), sex) %>%
   summarise(
     population.size = sum(population.size),
     .groups = "drop_last"
@@ -258,10 +267,11 @@ gezondheidsmonitor.data %>%
 ```{r}
 population.by.year.sex.education.and.age %>%
   filter(
-    year %in% c(2014, 2016, 2020),
-    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+    year(date) %in% c(2014, 2016, 2020),
+    age_lower >= 25,
+    age_upper <= 75
   ) %>%
-  group_by(year, education) %>%
+  group_by(year = year(date), education) %>%
   summarise(
     population.size = sum(population.size),
     .groups = "drop_last"
@@ -299,10 +309,14 @@ gezondheidsmonitor.data %>%
 ```{r}
 population.by.year.sex.education.and.age %>%
   filter(
-    year %in% c(2014, 2016, 2020),
-    age %in% c("[25,35)", "[35,45)", "[45,55)", "[55,65)", "[65,75)")
+    year(date) %in% c(2014, 2016, 2020),
+    age_lower >= 25,
+    age_upper <= 75
   ) %>%
-  group_by(year, age) %>%
+  group_by(
+    year = year(date),
+    age = cut(age_lower, c(25, 35, 45, 55, 65, 75), include.lowest = TRUE, right = FALSE)
+  ) %>%
   summarise(
     population.size = sum(population.size),
     .groups = "drop_last"
@@ -427,7 +441,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data
 
 [Placeholder for Text]
 
-# Explore
+# Explore Data
 
 Table \@ref(tab:Descriptive-Statistics-of-Gezondheidsmonitor) provides some descriptive statistics of the variables used which excludes some of the original data, removed in the cleaning process. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university. % Or move entire table to Clean script.
 
@@ -515,5 +529,8 @@ gezondheidsmonitor.data %>%
 [Placeholder for Text]
 
 ```{r}
-write_csv(gezondheidsmonitor.data, "../../Input Data/Risk Factors/Gezondheidsmonitor.csv")
+write_csv(
+  x = gezondheidsmonitor.data,
+  file = "../../Input Data/Risk Factors/Gezondheidsmonitor.csv"
+)
 ```

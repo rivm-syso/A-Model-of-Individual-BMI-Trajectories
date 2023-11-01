@@ -25,7 +25,7 @@ Before we begin, we will need to load some packages.
 library(tidyverse)
 ```
 
-# Data
+# Load Input
 
 [Placeholder for Text]
 
@@ -342,7 +342,7 @@ geslacht.en.leeftijd.volwassenen
 
 [Placeholder for Text]
 
-# Clean
+# Clean Data
 
 [Placeholder for Text]
 
