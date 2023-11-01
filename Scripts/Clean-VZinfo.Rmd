@@ -1,5 +1,5 @@
 ---
-title: "Clean and Explore VZinfo BMI Data"
+title: "Clean and Explore VZinfo Data"
 author: "Laurens Bogaardt"
 date: "2023-09-21"
 output:
@@ -36,9 +36,7 @@ trend.volwassenen.met.obesitas <- read_delim(
   col_types = cols_only(
     "Category" = col_integer(),
     "mannen gestand.*" = col_double(),
-    "vrouwen gestand.*" = col_double(),
-    "mannen ongestand." = col_double(),
-    "vrouwen ongestand." = col_double()
+    "vrouwen gestand.*" = col_double()
   )
 )
 trend.volwassenen.met.obesitas
@@ -57,9 +55,7 @@ trend.volwassenen.met.overgewicht <- read_delim(
   col_types = cols_only(
     "Category" = col_integer(),
     "mannen gestand.*" = col_double(),
-    "vrouwen gestand.*" = col_double(),
-    "mannen ongestand." = col_double(),
-    "vrouwen ongestand." = col_double()
+    "vrouwen gestand.*" = col_double()
   )
 )
 trend.volwassenen.met.overgewicht
@@ -75,19 +71,19 @@ trend.volwassenen.met.overgewicht
 bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
   pivot_longer(
     cols = !Category,
-    names_pattern = "(.*) (.*)",
-    names_to = c("sex", "standardised"),
+    names_pattern = "(.*) .*",
+    names_to = "sex",
     values_to = "prevalence_[25,Inf)"
   ) %>%
   full_join(
     trend.volwassenen.met.obesitas %>%
       pivot_longer(
         cols = !Category,
-        names_pattern = "(.*) (.*)",
-        names_to = c("sex", "standardised"),
+        names_pattern = "(.*) .*",
+        names_to = "sex",
         values_to = "prevalence_[30,Inf)"
       ),
-    by = c("Category", "sex", "standardised")
+    by = c("Category", "sex")
   ) %>%
   mutate(
     sex = recode_factor(
@@ -96,11 +92,6 @@ bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
       "vrouwen" = 1
     ),
     year = Category,
-    standardised = recode_factor(
-      standardised,
-      "ongestand." = 0,
-      "gestand.*" = 1
-    ),
     `prevalence_[25,30)` = round((`prevalence_[25,Inf)` - `prevalence_[30,Inf)`) / 100, 3),
     `prevalence_[30,Inf)` = round(`prevalence_[30,Inf)` / 100, 3)
   ) %>%
@@ -110,8 +101,8 @@ bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
     names_to = "bmi",
     values_to = "prevalence"
   ) %>%
-  select(year, sex, bmi, standardised, prevalence) %>%
-  arrange(year, sex, bmi, standardised, prevalence)
+  select(year, sex, bmi, prevalence) %>%
+  arrange(year, sex, bmi, prevalence)
 bmi.by.year.and.sex
 ```
 
