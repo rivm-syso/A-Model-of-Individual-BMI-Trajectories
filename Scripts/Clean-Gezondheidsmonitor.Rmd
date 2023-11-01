@@ -46,15 +46,8 @@ gezondheidsmonitor.data <- read_sav(
     sex = geslacht,
     education = opleiding_def,
     weight = weegfactor3,
-    age = LFT0109, # Is geboortejaar beschikbaar
-    bmi = AGGWS201,
-    drinker_last_year = LFALA201,
-    exdrinker = LFALA202,
-    #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
-    glasses_per_week = LFALS218,
-    roker = LFRKA205,
-    exroker = LFRKA206,
-    nooitroker = LFRKA207
+    age = LFT0109,
+    bmi = AGGWS201
   ) %>%
   mutate(year = 2012) %>%
   bind_rows(
@@ -68,14 +61,7 @@ gezondheidsmonitor.data <- read_sav(
         education = Opleiding_samind,
         weight = ewGGD,
         age = LFT0109,
-        bmi = AGGWS201,
-        drinker_last_year = LFALA201,
-        exdrinker = LFALA202,
-        #neverdrinker = LFALB207, #does not exist in the supplied dataset somehow
-        glasses_per_week = alc_week,
-        roker = LFRKA205,
-        exroker = LFRKA206,
-        nooitroker = LFRKA207
+        bmi = AGGWS201
       ) %>%
       mutate(year = 2016)
   )
@@ -209,85 +195,6 @@ Let's remove any BMI value larger than 50.
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   mutate(bmi = ifelse(bmi > 50, NA, bmi)) # Filter in main
 ```
-
-# Clean Alcohol
-
-[Placeholder for Text]
-
-## alcohol_status and drinker_last_year
-
-[Placeholder for Text]
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(
-    neverdrinker = case_when(
-      drinker_last_year == 0 & exdrinker == 0 ~ 1,
-      drinker_last_year == 1 & exdrinker == 0  ~ 0, 
-      drinker_last_year == 0 & exdrinker == 1 ~ 0 
-    )
-  )
-``` 
-
-[Placeholder for Text]
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
-  mutate(
-    alcohol_status = case_when(
-      neverdrinker == 1 ~ 1, 
-      drinker_last_year == 1 ~ 2, 
-      exdrinker == 1 ~ 3
-    )
-  )
-
-``` 
-
-[Placeholder for Text]
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
-  mutate(
-    drinker_last_year = case_when(
-      neverdrinker == 1 ~ 0, 
-      drinker_last_year == 1 ~ 1, 
-      exdrinker == 1 ~ 0
-    ), 
-    drinker_last_year = as.integer(drinker_last_year) 
-  )
-
-``` 
-
-## glasses_per_week
-
-Non-drinkers have NA for the number of glasses in the data. We replace this with zero glasses. 
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
-  mutate(
-    glasses_per_week = if_else(drinker_last_year == 1, glasses_per_week, 0)
-  )
-```
-
-## drinker_over_a_year
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data %>% 
-  mutate(
-    drinker_over_a_week = case_when(
-      glasses_per_week == 0 ~ 0, 
-      glasses_per_week > 0 ~ 1
-    ), 
-    drinker_over_a_week = as.integer(drinker_over_a_week)
-  )
-```
-
-## Summary
-
-```{r} 
-gezondheidsmonitor.data %>% 
-  count(year, drinker_last_year, drinker_over_a_week, exdrinker, neverdrinker, alcohol_status)
-``` 
 
 # Order Rows and Columns
 
@@ -527,7 +434,7 @@ Finally, we write the cleaned data of the Gezondheidsmonitor to a CSV file.
 ```{r}
 write_csv(
   x = gezondheidsmonitor.data,
-  file = "../Output Data/Gezondheidsmonitor.csv"
+  file = "../Output-Data/Gezondheidsmonitor.csv"
 )
 ```
 
