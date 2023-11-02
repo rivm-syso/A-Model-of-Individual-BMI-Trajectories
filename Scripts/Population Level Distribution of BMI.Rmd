@@ -41,12 +41,12 @@ library(vtable)
 
 # Load Data
 
-The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The data loaded here is a cleaned version, which was processed in the document [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html), where the data are also explored in more detail.
+The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Gezondheidsmonitor.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Gezondheidsmonitor/Clean-Gezondheidsmonitor.html), where the data are also explored in more detail.
 
 The data were gathered in September, October and November of 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model.
 %% TODO %% Furthermore, the data for 2016 will be reserved for external validation, described in the online supplementary information. This leads to our choice of fitting the model on the 2012 data.
 
-In the chunk below, we have limited the output. This is because the Public Health Monitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+In the chunk below, we have limited the output. This is because the Public Health Monitor dataset is not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 bmi.data <- read_csv(

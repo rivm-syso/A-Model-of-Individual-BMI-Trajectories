@@ -22,18 +22,15 @@ body{text-align: justify}
 
 # Introduction
 
-The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands in 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model. Furthermore, the data for 2016 will be reserved for external validation, described in the online supplementary information [@Bogaardt2022]. This leads to our choice of fitting the model on the 2012 data.
+The purpose of this document is to clean and explore the Gezondheidsmonitor dataset. This is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands. The survey was conducted in September, October and November of 2012, and was repeated in 2016 and in 2020.
 
-Table~\ref{tab:Gezondheidsmonitor} provides some descriptive statistics of the variables used which excludes some of the original data, removed in the cleaning process. This is also described in the online supplementary information. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
-
-Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data is not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).[@tidyverse2019]
+Before we begin, we need to load the packages _tidyverse_, _haven_ and _vtable_ [@tidyverse2019; @haven2021; @vtable2021].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 library(tidyverse)
 library(haven)
+library(vtable)
 ```
-
-[Placeholder for Text]
 
 # Load Input
 
@@ -54,10 +51,7 @@ population.by.year.sex.education.and.age <- read_csv(
 population.by.year.sex.education.and.age
 ```
 
-Education was measured as the highest level reached and categorised into three levels. The lowest level
-applies to people with intermediate secondary education or less, the medium level aggregates higher
-secondary- and intermediate vocational education and highest level includes higher vocational education
-and university.
+Let's load the Gezondheidsmonitor dataset. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
@@ -69,7 +63,7 @@ gezondheidsmonitor.data <- read_sav(
     sex = geslacht,
     education = opleiding_def,
     weight = weegfactor3,
-    age = LFT0109,
+    age = LFT0109, # Is geboortejaar beschikbaar
     bmi = AGGWS201,
     drinker_last_year = LFALA201,
     exdrinker = LFALA202,
@@ -133,56 +127,32 @@ gezondheidsmonitor.data <- read_sav(
   )
 ```
 
-[Placeholder for Text]
+# Clean Data
 
-# Missing Values
-
-[Placeholder for Text]
+## Survey Number
 
 ```{r}
 gezondheidsmonitor.data %>%
-  count(
-    Surveynummer,
-    sex = is.na(sex),
-    education = is.na(education),
-    age = is.na(age),
-    weight = weight == 0
-  )
+  count(Surveynummer)
 ```
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(Surveynummer == 1) %>%
+  select(-Surveynummer)
+```
+
+## Weight
 
 [Placeholder for Text]
 
 ```{r}
 gezondheidsmonitor.data %>%
   summarise(
-    bmi = sum(is.na(bmi)),
-    drinker_last_year = sum(is.na(drinker_last_year)),
-    exdrinker = sum(is.na(exdrinker)),
-    glasses_per_week = sum(is.na(glasses_per_week)),
-    roker = sum(is.na(roker)),
-    exroker = sum(is.na(exroker)),
-    nooitroker = sum(is.na(nooitroker))
-  )
-```
-
-[Placeholder for Text]
-
-```{r}
-gezondheidsmonitor.data %>%
-  mutate(
-    available = Surveynummer == 1 &
-      !is.na(sex) &
-      !is.na(education) &
-      !is.na(age) &
-      weight > 0
-  ) %>%
-  group_by(year) %>%
-  summarise(
-    available = sum(available),
-    missing = n() - sum(available),
-    fraction.available = sum(available) / n(),
-    fraction.missing = 1 - sum(available) / n(),
-    .groups = "drop"
+    min = min(weight),
+    max= max(weight),
+    na = sum(is.na(weight)),
+    zero = sum(weight == 0)
   )
 ```
 
@@ -190,17 +160,58 @@ gezondheidsmonitor.data %>%
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  filter(
-    Surveynummer == 1,
-    !is.na(sex),
-    !is.na(education),
-    !is.na(age),
-    weight > 0
-  ) %>%
-  select(-Surveynummer)
+  filter(weight > 0)
+```
+
+## Sex
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(sex)
 ```
 
 [Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(sex = factor(sex))
+```
+
+## Education
+
+Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(education)
+```
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(!is.na(education))
+```
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(education = factor(education, levels = c(1, 2, 3), ordered = TRUE))
+```
+
+## Age
+
+[Placeholder for Text]
+
+```{r}
+gezondheidsmonitor.data %>%
+  summarise(
+    min = min(age),
+    max = max(age),
+    na = sum(is.na(age))
+  )
+```
 
 # Verify Representativeness
 
@@ -331,15 +342,16 @@ population.by.year.sex.education.and.age %>%
 
 # Clean BMI
 
-[Placeholder for Text]
+In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data.
 
 ```{r}
 gezondheidsmonitor.data %>%
-  filter(!is.na(bmi)) %>%
   summarise(
-    above.65 = 100 * sum(bmi > 65) / n(),
-    above.70 = 100 * sum(bmi > 70) / n(),
-    above.75 = 100 * sum(bmi > 75) / n()
+    min = min(bmi, na.rm = TRUE),
+    max = max(bmi, na.rm = TRUE),
+    na = sum(is.na(bmi)),
+    below = sum(bmi < 14, na.rm = TRUE),
+    above = sum(bmi > 50, na.rm = TRUE)
   )
 ```
 
@@ -347,7 +359,7 @@ gezondheidsmonitor.data %>%
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(bmi = ifelse(bmi > 70, NA, bmi))
+  mutate(bmi = ifelse(bmi > 70, NA, bmi)) # Filter in main
 ```
 
 [Placeholder for Text]
@@ -431,65 +443,123 @@ gezondheidsmonitor.data %>%
   count(year, drinker_last_year, drinker_over_a_week, exdrinker, neverdrinker, alcohol_status)
 ``` 
 
-# Clean Smoking
-
-[Placeholder for Text]
-
-```{r} 
-gezondheidsmonitor.data <- gezondheidsmonitor.data
-``` 
-
-[Placeholder for Text]
-
 # Explore Data
 
-Table \@ref(tab:Descriptive-Statistics-of-Gezondheidsmonitor) provides some descriptive statistics of the variables used which excludes some of the original data, removed in the cleaning process. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university. % Or move entire table to Clean script.
+We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
 
 ```{r}
-gezondheidsmonitor.data %>%
+vtable(gezondheidsmonitor.data, out = "return", missing = TRUE)
+```
+
+## Participation
+
+[Placeholder for Text]
+
+Let's see how many participants we have per year.
+
+```{r}
+gezondheidsmonitor.participants.by.year <- gezondheidsmonitor.data %>%
   group_by(year) %>%
-  summarise(
-    n = n(),
-    n.bmi = sum(!is.na(bmi)),
-    .groups = "drop"
+  count(year)
+gezondheidsmonitor.participants.by.year
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = year,
+      y = n,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.participants.by.year,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "Number of participants"
   )
 ```
 
-[Placeholder for Text]
+## Sex
+
+Let's check, per year, what the number and percentages of males and females is.
 
 ```{r}
-gezondheidsmonitor.data %>%
-  group_by(year, sex) %>%
-  summarise(
-    n = n(),
-    n.bmi = sum(!is.na(bmi)),
-    .groups = "drop_last"
-  ) %>%
+gezondheidsmonitor.prevalence.sex <- gezondheidsmonitor.data %>%
+  count(year, sex) %>%
+  group_by(year) %>%
   mutate(
-    prevalence = n / sum(n),
-    prevalence.bmi = n.bmi / sum(n.bmi)
+    prevalence = n / sum(n)
   ) %>%
   ungroup()
+gezondheidsmonitor.prevalence.sex
 ```
 
-[Placeholder for Text]
+We can visualise this in a plot.
 
 ```{r}
-gezondheidsmonitor.data %>%
-  group_by(year, education) %>%
-  summarise(
-    n = n(),
-    n.bmi = sum(!is.na(bmi)),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = n / sum(n),
-    prevalence.bmi = n.bmi / sum(n.bmi)
-  ) %>%
-  ungroup()
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(year),
+      y = prevalence,
+      fill = sex
+    ),
+    data = gezondheidsmonitor.prevalence.sex
+  ) +
+  labs(
+    x = "Year",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Sex",
+    label = c("0" = "Male", "1" = "Female")
+  )
 ```
 
-[Placeholder for Text]
+## Education
+
+Let's check, per year, what the number and percentages of each of the three levels of education is.
+
+```{r}
+gezondheidsmonitor.prevalence.education <- gezondheidsmonitor.data %>%
+  count(year, education) %>%
+  group_by(year) %>%
+  mutate(
+    prevalence = n / sum(n)
+  ) %>%
+  ungroup()
+gezondheidsmonitor.prevalence.education
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(year),
+      y = prevalence,
+      fill = education
+    ),
+    data = gezondheidsmonitor.prevalence.education
+  ) +
+  labs(
+    x = "Year",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Level of education",
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+  )
+```
+
+## Age
+
+Let's check, per year, what the minimum, mean and maximum age is.
 
 ```{r}
 gezondheidsmonitor.data %>%
@@ -498,35 +568,113 @@ gezondheidsmonitor.data %>%
     min.age = min(age),
     mean.age = mean(age),
     max.age = max(age),
-    min.age.bmi = min(age[!is.na(bmi)]),
-    mean.age.bmi = mean(age[!is.na(bmi)]),
-    max.age.bmi = max(age[!is.na(bmi)]),
-    min.bmi = min(bmi, na.rm = TRUE),
-    mean.bmi = mean(bmi, na.rm = TRUE),
-    max.bmi = max(bmi, na.rm = TRUE),
     .groups = "drop"
   )
 ```
 
-[Placeholder for Text]
+We can visualise the age distribution in a boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = year,
+      y = age,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.data,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "Age"
+  )
+```
+
+We can also visualise the probability density of the age distribution by year.
+
+```{r}
+ggplot() + 
+  geom_density(
+    mapping = aes(
+      x = age,
+      col = factor(year)
+    ),
+    data = gezondheidsmonitor.data
+  ) +
+  labs(
+    x = "Age",
+    y = "Probability density",
+    col = "Year"
+  )
+```
+
+## BMI
+
+Let's check, per year, what the minimum, mean and maximum BMI value is.
 
 ```{r}
 gezondheidsmonitor.data %>%
-  count(year, drinker_last_year, exdrinker)
+  filter(!is.na(bmi)) %>% # Remove in main
+  group_by(year) %>%
+  summarise(
+    min.bmi = min(bmi),
+    mean.bmi = mean(bmi),
+    max.bmi = max(bmi),
+    .groups = "drop"
+  )
 ```
 
-[Placeholder for Text]
+We can visualise the BMI distribution in a boxplot.
 
 ```{r}
-gezondheidsmonitor.data %>%
-  count(year, roker, exroker, nooitroker)
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = year,
+      y = bmi,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.data %>% filter(!is.na(bmi)), # Remove in main
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "BMI"
+  )
 ```
 
-[Placeholder for Text]
+We can also visualise the probability density of the BMI distribution by year and sex.
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = bmi,
+      colour = sex,
+      linetype = factor(year)
+    ),
+    data = gezondheidsmonitor.data %>%
+      filter(
+        bmi > 15,
+        bmi < 45
+      )
+  ) +
+  xlim(15, 45) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    linetype = "Year"
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("0" = "Male", "1" = "Female")
+  )
+```
 
 # Write Output
 
-[Placeholder for Text]
+Finally, we write the cleaned data of the Gezondheidsmonitor to a CSV file.
 
 ```{r}
 write_csv(
@@ -534,3 +682,7 @@ write_csv(
   file = "../../Input Data/Risk Factors/Gezondheidsmonitor.csv"
 )
 ```
+
+# References
+
+<div id="refs"></div>

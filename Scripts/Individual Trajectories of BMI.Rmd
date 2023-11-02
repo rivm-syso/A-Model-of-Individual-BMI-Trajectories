@@ -99,7 +99,7 @@ doetinchem.data <- read_csv(
 vtable(doetinchem.data, out = "return", missing = TRUE)
 ```
 
-The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The data loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail.
+The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail.
 
 In the chunk below, we have limited the output. This is because the LISS dataset is not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
 
