@@ -38,8 +38,8 @@ library(vtable)
 Let's load the Doetinchem dataset. Throughout the document, we will limit the output in each step. This is because the Doetinchem data are not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
 
 ```{r}
-doetinchem <- read_sas(
-  data_file = "../Input-/Doetinchem/doetcoh_lcdm_update.sas7bdat",
+doetinchem.data <- read_sas(
+  data_file = "../Input-Data/Doetinchem/doetcoh_lcdm_update.sas7bdat",
   col_select = starts_with(
     c(
       "OPRNR",
@@ -649,7 +649,7 @@ Finally, we write the cleaned data for the Doetinchem Cohort Study to a CSV file
 
 ```{r}
 write_csv(
-  x = doetinchem.pivot,
+  x = doetinchem.data,
   file = "../Output-Data/Doetinchem.csv"
 )
 ```
