@@ -1540,7 +1540,7 @@ Finally, we write the cleaned data for the LISS panel to a CSV file.
 ```{r}
 write_csv(
   x = liss.data,
-  file = "../Output Data/LISS.csv"
+  file = "../Output-Data/LISS.csv"
 )
 ```
 
