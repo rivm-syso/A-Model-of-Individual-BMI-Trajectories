@@ -34,12 +34,12 @@ library(vtable)
 
 # Load Input
 
-Let's load the Gezondheidsmonitor dataset. The survey was first conducted in September, October and November of 2012, and was repeated in 2016 and in 2020. We will combine all three datasets here. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+Let's load the Gezondheidsmonitor dataset. The survey was first conducted in September, October and November of 2012, and was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include. So we will combine the first two datasets here. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
   file = "../Input Data/Gezondheidsmonitor/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
-  col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201", "LFALA201", "LFALA202", "LFALS218", "LFRKA205", "LFRKA206", "LFRKA207")
+  col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201")
 ) %>%
   zap_labels() %>%
   rename(
@@ -53,7 +53,7 @@ gezondheidsmonitor.data <- read_sav(
   bind_rows(
     read_sav(
       file = "../Input-Data/Gezondheidsmonitor/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
-      col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201", "LFALA201", "LFALA202", "alc_week","LFRKA205", "LFRKA206", "LFRKA207")
+      col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201")
     ) %>%
       zap_labels() %>%
       rename(
@@ -146,9 +146,7 @@ Let's now recode the variable. Education was measured as the highest level reach
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   mutate(
-    education = ifelse(education == 1, education, education - 1), #recode the education levels. 
-    # original:  laag (LO), midden1 (MAVO, LBO), midden2 (HAVO, VWO, MBO) en hoog (HBO, WO)
-    # source: https://monitorgezondheid.nl/sites/default/files/2021-06/20160914%20Opbouw%20en%20instructie%20totaalbestand%20Gezondheidsmonitor%202012.pdf
+    education = ifelse(education == 1, education, education - 1),
     education = factor(education, levels = c(1, 2, 3), ordered = TRUE)
   )
 ```
@@ -157,6 +155,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 Let's check that there are only adults in the dataset. We also verify that there are no missing values.
 
+```{r}
 gezondheidsmonitor.data %>%
   summarise(
     min = min(age),
@@ -193,7 +192,7 @@ Let's remove any BMI value larger than 50.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(bmi = ifelse(bmi > 50, NA, bmi)) # Filter in main
+  filter(!is.na(bmi))
 ```
 
 # Order Rows and Columns
@@ -375,7 +374,6 @@ Let's check, per year, what the minimum, mean and maximum BMI value is.
 
 ```{r}
 gezondheidsmonitor.data %>%
-  filter(!is.na(bmi)) %>% # Remove in main
   group_by(year) %>%
   summarise(
     min.bmi = min(bmi),
@@ -395,7 +393,7 @@ ggplot() +
       y = bmi,
       fill = factor(year)
     ),
-    data = gezondheidsmonitor.data %>% filter(!is.na(bmi)), # Remove in main
+    data = gezondheidsmonitor.data,
     show.legend = FALSE
   ) +
   labs(
