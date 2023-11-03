@@ -173,7 +173,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   )
 ```
 
-# Clean BMI
+## BMI
 
 In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data and if there are any missing values.
 
@@ -188,7 +188,7 @@ gezondheidsmonitor.data %>%
   )
 ```
 
-Let's remove any BMI value larger than 50.
+Let's remove the rows with missing values.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
