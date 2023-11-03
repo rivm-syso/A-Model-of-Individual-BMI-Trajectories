@@ -24,7 +24,7 @@ body{text-align: justify}
 
 The purpose of this document is to clean and explore the data of the Longitudinal Internet studies for the Social Sciences (LISS) panel. This panel is a representative sample of Dutch individuals who participate in monthly Internet surveys [@Scherpenzeel2010]. The panel is based on a true probability sample of households drawn from the population register. Households that could not otherwise participate are provided with a computer and Internet connection. A longitudinal survey is fielded in the panel every year, covering a large variety of domains including health, work, education, income, housing, time use, political views, values and personality.
 
-Before we begin, we need to load the packages _tidyverse_, _haven_ and _vtable_ [@tidyverse2019; @haven2021; @vtable2021].
+Before we begin, we need to load the packages _tidyverse_, _haven_, _ggforce_ and _vtable_ [@tidyverse2019; @haven2021; @ggforce2022; @vtable2021].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 library(tidyverse)
@@ -1114,55 +1114,13 @@ ggplot(
   geom_parallel_sets_axes(axis.width = 0.4) +
   scale_x_continuous(
     name = "Wave",
-    breaks = seq(13)
+    breaks = seq(14)
   ) +
-  scale_fill_discrete(name = "Type") +
+  scale_fill_discrete(name = "Participating") +
   theme_void() +
   theme(
     axis.title.x = element_text(margin = margin(t = 4)),
     axis.text.x = element_text(margin = margin(t = -12))
-  )
-```
-
-The transitions rate in and out of the panel over time can also be determined more explicitly.
-
-```{r}
-transition.rates <- stratum.per.participant.per.wave %>%
-  group_by(participant.id) %>%
-  mutate(next.stratum = lead(stratum, order_by = wave)) %>%
-  ungroup() %>%
-  filter(!is.na(next.stratum)) %>%
-  count(wave, stratum, next.stratum, name = "transition.rate") %>%
-  group_by(wave, stratum) %>%
-  reframe(
-    stratum,
-    next.stratum,
-    transition.rate = transition.rate / sum(transition.rate)
-  )
-transition.rates
-```
-
-These transition rates can be visualised as transition matrices.
-
-```{r}
-ggplot(
-  mapping = aes(
-    x = stratum,
-    y = next.stratum,
-    fill = transition.rate,
-    label = sprintf("%.2f", transition.rate)
-  ),
-  data = transition.rates
-) +
-  geom_tile(alpha = 0.7) +
-  geom_text() +
-  labs(
-    x = "From",
-    y = "To",
-    fill = "Transition rate"
-  ) +
-  facet_wrap(
-    facets = ~ paste("Wave", wave, "to", wave + 1)
   )
 ```
 
@@ -1334,8 +1292,7 @@ ggplot() +
   geom_density(
     mapping = aes(
       x = bmi,
-      colour = sex,
-      linetype = factor(wave)
+      colour = factor(wave)
     ),
     data = liss.data %>%
       filter(
@@ -1348,11 +1305,7 @@ ggplot() +
   labs(
     x = "BMI",
     y = "Probability density",
-    linetype = "Wave"
-  ) +
-  scale_color_discrete(
-    name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    col = "Wave"
   )
 ```
 
@@ -1393,7 +1346,6 @@ ggplot() +
   geom_density(
     mapping = aes(x = difference),
     data = liss.data %>%
-      filter(!is.na(bmi)) %>% # Remove in main
       group_by(participant.id) %>%
       summarise(difference = diff(range(bmi)), .groups = "drop")
   ) +
