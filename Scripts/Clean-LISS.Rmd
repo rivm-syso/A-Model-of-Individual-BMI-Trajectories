@@ -346,7 +346,17 @@ Let's check if there are any participants who are missing their age.
 
 ```{r}
 background.data %>%
-  summarise(missing = sum(is.na(age)))
+  summarise(
+    missing = sum(is.na(age)),
+    minor = sum(age < 18)
+  )
+```
+
+Let's keep only the adults in the dataset.
+
+```{r}
+background.data <- background.data %>%
+  filter(age >= 18)
 ```
 
 The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compared with the stated age.
@@ -527,123 +537,9 @@ liss.data <- liss.data %>%
   )
 ```
 
-# Clean Physical Activity
-
-## According to IPAQ guideline
-
-1. Check height and weight data based on data distribution (length data: 0-220, >260; weight data: 0-200, 300, >600).
-```{r}
-range(liss.data$length, na.rm = T)
-range(liss.data$weight, na.rm = T)
-```
-
-2. In some cases responses in 'hours' were reported as an equivalent number of 'minutes'. These data are converted to 0.
-```{r}
-liss.data$hrs_str[liss.data$hrs_str*60 == liss.data$min_str] <- 0
-liss.data$hrs_mod[liss.data$hrs_mod*60 == liss.data$min_mod] <- 0
-liss.data$hrs_walk[liss.data$hrs_walk*60 == liss.data$min_walk] <- 0
-```
-
-3. Correct negative values.
-```{r}
-liss.data$hrs_walk <- abs(liss.data$hrs_walk)
-```
-
-4. Check responses in 'minutes' were not entered in the 'hours': values of 15,30,45,60,and 90 in the 'hours' are converted to 15,30,45,60,90 minutes.
-```{r}
-### strenuous data
-liss.data$min_str[liss.data$hrs_str == 15] <- 15
-liss.data$min_str[liss.data$hrs_str == 30] <- 30
-liss.data$min_str[liss.data$hrs_str == 45] <- 45
-liss.data$min_str[liss.data$hrs_str == 60] <- 60
-liss.data$min_str[liss.data$hrs_str == 90] <- 90
-
-liss.data$hrs_str[which(liss.data$hrs_str %in% c(15, 30, 45, 60, 90))] <- 0
-
-### moderate data
-liss.data$min_mod[liss.data$hrs_mod == 15] <- 15
-liss.data$min_mod[liss.data$hrs_mod == 30] <- 30
-liss.data$min_mod[liss.data$hrs_mod == 45] <- 45
-liss.data$min_mod[liss.data$hrs_mod == 60] <- 60
-liss.data$min_mod[liss.data$hrs_mod == 90] <- 90
-
-liss.data$hrs_mod[which(liss.data$hrs_mod %in% c(15, 30, 45, 60, 90))] <- 0
-
-### walk data
-liss.data$min_walk[liss.data$hrs_walk == 15] <- 15
-liss.data$min_walk[liss.data$hrs_walk == 30] <- 30
-liss.data$min_walk[liss.data$hrs_walk == 45] <- 45
-liss.data$min_walk[liss.data$hrs_walk == 60] <- 60
-liss.data$min_walk[liss.data$hrs_walk == 90] <- 90
-
-liss.data$hrs_walk[which(liss.data$hrs_walk %in% c(15, 30, 45, 60, 90))] <- 0
-```
-
-5. Calculate activity time (minutes per day).
-6. Define Valid responses for day per week. If people did not answer the question about days per week, fill the values of time as 0.
-7. We assume people sleep 8 hours a day. Total PA should be less than 960.
-```{r}
-liss.data <- liss.data %>%
-  rowwise() %>%
-  mutate(
-    vig_time = sum(60*hrs_str, min_str, na.rm = T),
-    mod_time = sum(60*hrs_mod, min_mod, na.rm = T),
-    walk_time = sum(60*hrs_walk, min_walk, na.rm = T)
-  ) %>%
-  ungroup()
-
-liss.data$vig_time[is.na(liss.data[,"str_7days"])] <- NA
-liss.data$mod_time[is.na(liss.data[,"mod_7days"])] <- NA
-liss.data$walk_time[is.na(liss.data[,"walk_7days"])] <- NA
-
-liss.data$str_7days[liss.data$vig_time < 10] <- 0
-liss.data$mod_7days[liss.data$mod_time < 10] <- 0
-liss.data$walk_7days[liss.data$walk_time < 10] <- 0
-
-liss.data$vig_time[liss.data$vig_time > 960] <- NA
-liss.data$mod_time[liss.data$mod_time > 960] <- NA
-liss.data$walk_time[liss.data$walk_time > 960] <- NA
-
-liss.data <- liss.data %>%
-  rowwise() %>%
-  mutate(pa_time = sum(vig_time, mod_time, walk_time)) %>%
-  ungroup()
-
-head(liss.data)
-```
-
-## Calculating outcome variables MVPA and gl
-MVPA: Minutes per week moderate- to vigorous- intensity physical activity.
-Because walking has a MET value of 3.3, here consider it as moderate intensity PA.
-pa.state: if people are sufficiently or insufficiently active according to Dutch guideline (150+ minutes of moderate-intensity activity per week, spread over several days).
-
-```{r}
-liss.data <- liss.data %>%
-  rowwise() %>%
-  mutate(
-    MVPA = ifelse(pa_time <= 960, sum(vig_time*str_7days, mod_time*mod_7days, walk_time*walk_7days, na.rm = T), NA),
-    days = sum(str_7days, mod_7days, walk_7days, na.rm = T),
-    pa.state = ifelse(MVPA >= 150 & days >= 2, 1, 0)
-  ) %>%
-  ungroup() %>%
-  select(-c(str_7days, hrs_str, min_str, mod_7days, hrs_mod, min_mod, walk_7days, hrs_walk, min_walk, vig_time, mod_time, walk_time, pa_time, days))
-```
-
-# Clean BMI
-
-In this section, we will examine the columns _length_ and _weight_ from the health questionnaire and construct the new variable _bmi_.
-
-## Age Limit
+# Clean Health Data
 
 [Placeholder for text]
-
-```{r}
-liss.data <- liss.data %>% # Relocate in main
-  mutate(
-    length = ifelse(age < 18, NA, length),
-    weight = ifelse(age < 18, NA, weight)
-  )
-```
 
 ## Length
 
@@ -652,7 +548,6 @@ Let's now check whether any participant is missing all entries for their length.
 ```{r}
 liss.data %>%
   group_by(participant.id) %>%
-  filter(age >= 18) %>% # Remove in main
   summarise(
     missing = all(is.na(length)),
     .groups = "drop"
@@ -663,17 +558,16 @@ liss.data %>%
 We will remove these participants from the dataset.
 
 ```{r}
-# liss.data <- liss.data %>%
-#   group_by(participant.id) %>%
-#   filter(!all(is.na(length))) %>%
-#   ungroup()
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(!all(is.na(length))) %>%
+  ungroup()
 ```
 
 Let's now check whether any participant is missing any entry for their length.
 
 ```{r}
 liss.data %>%
-  filter(age >= 18) %>% # Remove in main
   group_by(participant.id) %>%
   summarise(
     missing = any(!is.na(length)) && any(is.na(length)),
@@ -700,7 +594,7 @@ Let's check how many participants have an unrealistically high or low length.
 
 ```{r}
 liss.data %>%
-  filter(age >= 18, !is.na(length)) %>% # Remove in main
+  filter(!is.na(length)) %>%
   group_by(participant.id) %>%
   summarise(
     below = any(length < 140),
@@ -728,7 +622,6 @@ Let's check how many participants have large differences in their length over ti
 
 ```{r}
 liss.data %>%
-  filter(age >= 18) %>% # Remove in main
   group_by(participant.id) %>%
   filter(
     sum(!is.na(length)) >= 2
@@ -761,7 +654,6 @@ Let's now check whether any participant is missing all entries for their weight.
 ```{r}
 liss.data %>%
   group_by(participant.id) %>%
-  filter(age >= 18) %>% # Remove in main
   summarise(
     missing = all(is.na(weight)),
     .groups = "drop"
@@ -772,17 +664,16 @@ liss.data %>%
 We will remove these participants from the dataset.
 
 ```{r}
-# liss.data <- liss.data %>%
-#   group_by(participant.id) %>%
-#   filter(!all(is.na(weight))) %>%
-#   ungroup()
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(!all(is.na(weight))) %>%
+  ungroup()
 ```
 
 Let's now check whether any participant is missing any entry for their weight.
 
 ```{r}
 liss.data %>%
-  filter(age >= 18) %>% # Remove in main
   group_by(participant.id) %>%
   summarise(
     missing = any(!is.na(weight)) && any(is.na(weight)),
@@ -794,15 +685,15 @@ liss.data %>%
 It is nearly impossible to impute reasonable values for these entries, so we will remove these waves from the dataset.
 
 ```{r}
-# liss.data <- liss.data %>%
-#   filter(any(!is.na(weight)) && any(is.na(weight)))
+liss.data <- liss.data %>%
+  filter(any(!is.na(weight)) && any(is.na(weight)))
 ```
 
 Let's check how many participants have an unrealistically high or low weight.
 
 ```{r}
 liss.data %>%
-  filter(age >= 18, !is.na(weight)) %>% # Remove in main
+  filter(!is.na(weight)) %>%
   group_by(participant.id) %>%
   summarise(
     below = any(weight < 40),
@@ -830,7 +721,6 @@ Let's check how many participants have very large differences in their weight ov
 
 ```{r}
 liss.data %>%
-  filter(age >= 18) %>% # Remove in main
   group_by(participant.id) %>%
   filter(
     sum(!is.na(weight)) >= 2
@@ -871,159 +761,12 @@ In most of their analyses, Statistics Netherlands removes outlying BMI values wh
 ```{r}
 liss.data %>%
   summarise(
-    below = sum(bmi < 14, na.rm = TRUE),
-    above = sum(bmi > 50, na.rm = TRUE),
-    min.bmi = min(bmi, na.rm = TRUE),
-    max.bmi = max(bmi, na.rm = TRUE)
+    below = sum(bmi < 14),
+    above = sum(bmi > 50),
+    min.bmi = min(bmi),
+    max.bmi = max(bmi)
   )
 ```
-# Clean Smoking
-
-## Smoking status
-
-```{r}
-liss.data <- liss.data %>%
-  mutate(
-    smoking_status = case_when(
-      smokes_now == 1 ~ "Smokes",
-      smokes_now == 2 ~ "Stopped",
-      is.na(smokes_now)==TRUE & is.na(ever_smoked)==FALSE ~ "Never Smoked"
-    )
-  )
-```
-
-## Transitions
-
-I will only look at two adjacent periods at the time and pool all years. If someone filled in the questionnaire in 2007, 2008 and 2009, for example, then he will appear twice in the data set; once with the transition 2007-2008 and once with the transition 2008 - 2009. 
-
-```{r}
-transitions.uncorrected <- liss.data %>%
-  filter(
-    !is.na(ever_smoked),
-    wave.year < max(wave.year)
-  ) %>%
-  select(participant.id, sex, wave.year, smoking_status) %>%
-  inner_join(
-    liss.data %>%
-      filter(!is.na(ever_smoked),
-        wave.year > min(wave.year)) %>%
-      mutate(wave.year = wave.year - 1) %>%
-      select(participant.id, wave.year, smoking_status),
-    by = c("participant.id", "wave.year")
-  ) %>%
-  count(sex, "0" = smoking_status.x, "1" = smoking_status.y) %>%
-  mutate(row.id = seq(n())) %>%
-  pivot_longer(c("0", "1")) %>%
-  mutate(name = as.numeric(name))
-transitions.uncorrected
-```
-
-[Placeholder for text]
-
-```{r}
-ggplot(
-  mapping = aes(
-    x = name,
-    id = row.id,
-    split = value,
-    value = n
-  ),
-  data = transitions.uncorrected
-) +
-  geom_parallel_sets(
-    mapping = aes(fill = as.factor(sex)),
-    alpha = 0.5,
-    axis.width = 0.1
-  ) +
-  geom_parallel_sets_axes(
-    axis.width = 0.1,
-    fill = "grey"
-  ) +
-  geom_parallel_sets_labels() +
-  scale_fill_discrete(
-    name = "Sex",
-    labels = c("Male", "Female")
-  ) +
-  theme_void()
-```
-
-[Placeholder for text]
-
-## Illogical Transitions
-
-[Placeholder for text]
-
-```{r}
-transitions<-data.frame()
-
-for (i in c(2007:2013, 2015:2019)) {
-  links_t<-liss.data %>%
-  {if (i==2013) filter(.,wave.year %in% c(i, i+2) & is.na(ever_smoked)==FALSE) else filter(.,wave.year %in% c(i, i+1) & is.na(ever_smoked)==FALSE)} %>%
-  mutate(wave.year=if_else(wave.year==min(wave.year), "source", "target"))%>%
-  select(participant.id, smokes_now, wave.year) %>%
-  mutate(smokes_now=as.factor(smokes_now)) %>% 
-  mutate(smokes_now=case_when(smokes_now ==1 ~ 'smokes', 
-                              smokes_now ==2 ~ 'stopped',
-                              is.na(smokes_now) ~ 'never smoked')) %>% 
-  spread(wave.year, smokes_now) %>%
-  filter(is.na(source)==FALSE & is.na(target)==FALSE) %>%
-    mutate(wave=i)
-  
-transitions<-rbind(transitions, links_t)
-}
-
-``` 
-
-Transitions 'stopped' -> 'never smoked' and 'smokes' -> 'never smoked' are impossible. They occur in `r transitions %>% filter(source %in% c('stopped', 'smokes') & target=='Never smoked') %>% count()` transitions, which `r (transitions %>% filter(source %in% c('stopped', 'smokes') & target=='never smoked') %>% count()*100)/(transitions %>% count())`% of the total number of transition.
-
-
-[Placeholder for text]
-
-```{r}
-
-transitions<-transitions %>% mutate(illogical=ifelse((source %in% c('stopped', 'smokes') & target=='never smoked'), TRUE, FALSE))
-
-illog_no<-transitions %>% filter(illogical==TRUE) %>%
-  distinct(participant.id) %>% pull(participant.id)
-
-
-illog_trans<-transitions %>% filter(participant.id %in% illog_no)
-
-illog_trans %>% group_by(participant.id) %>% summarize(pc=mean(illogical)) %>%
-  count(pc)
-
-```
-
-[Placeholder for text]
-
-```{r}
-illog_trans%>%count(wave)
-
-```
-
-## Correct Transitions
-
-If someone has ever answered 'smokes' or 'stopped', then I correct all 'never smoked' answers of that person in the following years to 'stopped'. This person can have the answer 'smokes' after 'stopped' but not 'never smoked' any more.
-
-```{r}
-
-# search the year when someone stated smoking or stopped smoking (after which he cannot answer 'never smoked')
-began_smoke_or_stopped<-liss.data %>% group_by(participant.id) %>% arrange(wave.year) %>% 
-  filter(smoking_status %in% c('Stopped', 'Smokes'))  %>%
-  filter(wave.year==min(wave.year)) %>% select(participant.id, wave.year) %>% rename(wave_began_stopped=wave.year)
-
-# correct smoking status
-liss.data <- liss.data %>%
-  left_join(y=began_smoke_or_stopped, by="participant.id") %>% 
-  mutate(wave_began_stopped=ifelse(is.na(wave_began_stopped), 9999, wave_began_stopped)) %>%
-  mutate(smoking_status_corr=ifelse((wave_began_stopped<wave.year & smoking_status=='Never Smoked'), "Stopped", smoking_status)) %>%
-  select(-wave_began_stopped)
-
-```
-
-# Clean Alcohol Consumption
-
-[Placeholder for text]
 
 # Order Rows and Columns
 
@@ -1369,16 +1112,21 @@ ggplot(
   )
 ```
 
+<<<<<<< HEAD
 ## Physical Activity
 
 ```{r}
 liss.data %>%
   count(pa.state)
 ```
+=======
+Finally, let's examine how large a change in BMI the participants experience over the 14 waves. This, too, may be visualised in a density plot.
+>>>>>>> wd
 
 ```{r}
 ggplot() +
   geom_density(
+<<<<<<< HEAD
     mapping = aes(x = MVPA, colour = as.factor(sex)),
     data = liss.data %>%
       filter(!is.na(MVPA))
@@ -1533,6 +1281,19 @@ ggplot(
 
 [Placeholder for text]
 
+=======
+    mapping = aes(x = difference),
+    data = liss.data %>%
+      group_by(participant.id) %>%
+      summarise(difference = diff(range(bmi)), .groups = "drop")
+  ) +
+  labs(
+    x = "BMI differences",
+    y = "Probability density"
+  )
+```
+
+>>>>>>> wd
 # Write Output
 
 Finally, we write the cleaned data for the LISS panel to a CSV file.
