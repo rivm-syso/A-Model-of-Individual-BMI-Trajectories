@@ -117,18 +117,23 @@ gezondheidsmonitor.data <- read_sav(
         nooitroker = LFRKA207
       ) %>%
       mutate(year = 2020)
-  ) %>%
-  relocate(year, .before = "Surveynummer")
+  )
 ```
 
 # Clean Data
 
+We will examine each variable in the dataset and clean the data when necessary.
+
 ## Survey Number
+
+The Gezondheidsmonitor dataset is a combination of a questionnaire administered by the Community Health Services and one administered by Statistics Netherlands. The variable _Surveynummer_ indicates which questionnaire the participant participated in.
 
 ```{r}
 gezondheidsmonitor.data %>%
   count(Surveynummer)
 ```
+
+We are only interested in the data gathered by the Community Health Services, so we will filter our dataset. The variable _Surveynummer_ is subsequently no longer needed.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
@@ -138,7 +143,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 ## Weight
 
-[Placeholder for Text]
+The survey weights included in the dataset allow for representative analyses of the Netherlands. Let's check if any of these are missing and whether they are all positive numbers.
 
 ```{r}
 gezondheidsmonitor.data %>%
@@ -150,7 +155,7 @@ gezondheidsmonitor.data %>%
   )
 ```
 
-[Placeholder for Text]
+Let's remove the participants who have zero weight.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
@@ -159,14 +164,14 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 ## Sex
 
-[Placeholder for Text]
+We verify that there are only two sexes and immediately check whether there are any missing values.
 
 ```{r}
 gezondheidsmonitor.data %>%
   count(sex)
 ```
 
-[Placeholder for Text]
+Let's recode the variable. A _0_ will encode males, whereas females are encoded by a _1_.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
@@ -175,19 +180,21 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 ## Education
 
-Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
+Let's now check whether any participant is missing their level of education.
 
 ```{r}
 gezondheidsmonitor.data %>%
   count(education)
 ```
 
+We will remove these participants from the dataset.
+
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   filter(!is.na(education))
 ```
 
-[Placeholder for Text]
+Let's now recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
@@ -201,7 +208,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 ## Age
 
-[Placeholder for Text]
+Let's check that there are only adults in the dataset. We also verify that there are no missing values.
 
 ```{r}
 gezondheidsmonitor.data %>%
@@ -341,7 +348,7 @@ population.by.year.sex.education.and.age %>%
 
 # Clean BMI
 
-In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data.
+In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data and if there are any missing values.
 
 ```{r}
 gezondheidsmonitor.data %>%
@@ -354,14 +361,12 @@ gezondheidsmonitor.data %>%
   )
 ```
 
-[Placeholder for Text]
+Let's remove any BMI value larger than 50.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(bmi = ifelse(bmi > 70, NA, bmi)) # Filter in main
+  mutate(bmi = ifelse(bmi > 50, NA, bmi)) # Filter in main
 ```
-
-[Placeholder for Text]
 
 # Clean Alcohol
 
