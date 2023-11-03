@@ -432,8 +432,8 @@ We can check how many health questionnaires the participants filled in per year.
 
 ```{r}
 liss.data %>%
-  count(year(date), participant.id) %>%
-  count(year(date), n, name = "participants")
+  count(year = year(date), participant.id) %>%
+  count(year, n, name = "participants")
 ```
 
 This can also be visualised in a plot. As seen, the questionnaires were administered in two different months each wave. Most of the time, the year belonging to these paired months is the same. The exception is in 2007 and 2008. The round of February 2008 can be considered part of the wave of 2007. The frequency of the questionnaire was approximately one year, except between 2013 and 2016, when there was a gap, meaning the year 2014 was skipped.
@@ -470,9 +470,9 @@ Let's now verify that the participants filled in only one health questionnaire p
 
 ```{r}
 liss.data %>%
-  mutate(wave.year = if_else(wave == 200802, 2007, year(date))) %>%
-  count(wave.year, participant.id) %>%
-  count(wave.year, n, name = "participants")
+  mutate(year = if_else(wave == 200802, 2007, year(date))) %>%
+  count(year, participant.id) %>%
+  count(year, n, name = "participants")
 ```
 
 Let's change the year of the wave of February 2008 to be 2007 and let's recode _wave_ to number the waves consecutively, taking into account that 2014 is skipped.
@@ -502,7 +502,7 @@ liss.data <- liss.data %>%
 
 ## Clean Age
 
-Now that the background data has been combined with the health data, we can filter out specific rows from the data applying to minors.
+Now that the background data have been combined with the health data, we can filter out specific rows from the data applying to minors.
 
 ```{r}
 liss.data <- liss.data %>%
@@ -511,7 +511,7 @@ liss.data <- liss.data %>%
 
 # Clean Health Data
 
-[Placeholder for text]
+In this section, we will examine the columns _length_ and _weight_ from the health questionnaire and construct the new variable _bmi_.
 
 ## Length
 
@@ -584,8 +584,9 @@ Given that the LISS data are self-reported, errors in filling out the questionna
 ```{r}
 liss.data <- liss.data %>%
   group_by(participant.id) %>%
-  mutate(
-    length = length * NA ^ (length < 140 | length > 220)
+  filter(
+    length >= 140,
+    length <= 220
   ) %>%
   ungroup()
 ```
@@ -610,12 +611,7 @@ Let's remove the participants with an unrealistically large difference in their 
 ```{r}
 liss.data <- liss.data %>%
   group_by(participant.id) %>%
-  mutate(
-    length = length * NA ^ (
-      sum(!is.na(length)) >= 2 &&
-        diff(range(length, na.rm = TRUE)) > 8
-      )
-  ) %>%
+  filter(sum(!is.na(length)) < 2 | diff(range(length, na.rm = TRUE)) <= 8) %>%
   ungroup()
 ```
 
@@ -683,8 +679,9 @@ Given that the LISS data are self-reported, errors in filling out the questionna
 ```{r}
 liss.data <- liss.data %>%
   group_by(participant.id) %>%
-  mutate(
-    weight = weight * NA ^ (weight < 40 | weight > 200)
+  filter(
+    weight >= 40,
+    weight <= 200
   ) %>%
   ungroup()
 ```
@@ -709,12 +706,7 @@ Let's remove the participants with an unrealistically large difference in their 
 ```{r}
 liss.data <- liss.data %>%
   group_by(participant.id) %>%
-  mutate(
-    weight = weight * NA ^ (
-      sum(!is.na(weight)) >= 2 &&
-        (diff(range(weight, na.rm = TRUE)) > 80)
-      )
-  ) %>%
+  filter(sum(!is.na(weight)) < 2 | diff(range(weight, na.rm = TRUE)) <= 80) %>%
   ungroup()
 ```
 
@@ -737,6 +729,16 @@ liss.data %>%
     above = sum(bmi > 50),
     min.bmi = min(bmi),
     max.bmi = max(bmi)
+  )
+```
+
+Let's remove these outliers from our data.
+
+```{r}
+liss.data <- liss.data %>%
+  filter(
+    bmi >= 14,
+    bmi <= 50
   )
 ```
 
@@ -1002,7 +1004,6 @@ Let's check, per wave, what the minimum, mean and maximum BMI value is.
 
 ```{r}
 liss.data %>%
-  filter(!is.na(bmi)) %>% # Remove in main
   group_by(wave) %>%
   summarise(
     min.bmi = min(bmi),
@@ -1022,7 +1023,7 @@ ggplot() +
       y = bmi,
       fill = factor(wave)
     ),
-    data = liss.data %>% filter(!is.na(bmi)), # Remove in main
+    data = liss.data,
     show.legend = FALSE
   ) +
   labs(
@@ -1066,7 +1067,6 @@ ggplot(
   ),
   data = liss.data %>%
     group_by(participant.id) %>%
-    filter(!is.na(bmi)) %>% # Remove in main
     filter(n() == 14) %>%
     nest() %>%
     ungroup() %>%
