@@ -205,7 +205,6 @@ doetinchem.data %>%
   count(unsorted)
 ```
 
-
 Some participants are missing their level of education for some of the waves. There are also participants who show inconsistencies in their highest reached level of education over time. Both these problems can be solved by assigning the last available entry as the one representing their true level of education. Although this imputation is not perfect, it is a simple solution which distorts the data as little as possible.
 
 ```{r}
