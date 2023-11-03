@@ -457,8 +457,6 @@ vtable(gezondheidsmonitor.data, out = "return", missing = TRUE)
 
 ## Participation
 
-[Placeholder for Text]
-
 Let's see how many participants we have per year.
 
 ```{r}
@@ -655,8 +653,7 @@ ggplot() +
   geom_density(
     mapping = aes(
       x = bmi,
-      colour = sex,
-      linetype = factor(year)
+      colour = factor(year)
     ),
     data = gezondheidsmonitor.data %>%
       filter(
@@ -668,11 +665,7 @@ ggplot() +
   labs(
     x = "BMI",
     y = "Probability density",
-    linetype = "Year"
-  ) +
-  scale_color_discrete(
-    name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    col = "Year"
   )
 ```
 
