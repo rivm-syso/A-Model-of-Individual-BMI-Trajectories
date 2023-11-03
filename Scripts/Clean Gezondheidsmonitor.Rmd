@@ -22,7 +22,7 @@ body{text-align: justify}
 
 # Introduction
 
-The purpose of this document is to clean and explore the Gezondheidsmonitor dataset. This is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands. The survey was conducted in September, October and November of 2012, and was repeated in 2016 and in 2020.
+The purpose of this document is to clean and explore the Gezondheidsmonitor dataset. This is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands.
 
 Before we begin, we need to load the packages _tidyverse_, _haven_ and _vtable_ [@tidyverse2019; @haven2021; @vtable2021].
 
@@ -51,7 +51,7 @@ population.by.year.sex.education.and.age <- read_csv(
 population.by.year.sex.education.and.age
 ```
 
-Let's load the Gezondheidsmonitor dataset. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+Let's load the Gezondheidsmonitor dataset. The survey was first conducted in September, October and November of 2012, and was repeated in 2016 and in 2020. We will combine all three datasets here. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
@@ -118,13 +118,7 @@ gezondheidsmonitor.data <- read_sav(
       ) %>%
       mutate(year = 2020)
   ) %>%
-  relocate(year, .before = "Surveynummer") %>%
-  mutate(
-    sex = sex - 1,
-    education = ifelse(education == 1, education, education - 1) #recode the education levels. 
-    # original:  laag (LO), midden1 (MAVO, LBO), midden2 (HAVO, VWO, MBO) en hoog (HBO, WO)
-    # source: https://monitorgezondheid.nl/sites/default/files/2021-06/20160914%20Opbouw%20en%20instructie%20totaalbestand%20Gezondheidsmonitor%202012.pdf
-  )
+  relocate(year, .before = "Surveynummer")
 ```
 
 # Clean Data
@@ -176,7 +170,7 @@ gezondheidsmonitor.data %>%
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(sex = factor(sex))
+  mutate(sex = factor(sex - 1))
 ```
 
 ## Education
@@ -197,7 +191,12 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(education = factor(education, levels = c(1, 2, 3), ordered = TRUE))
+  mutate(
+    education = ifelse(education == 1, education, education - 1), #recode the education levels. 
+    # original:  laag (LO), midden1 (MAVO, LBO), midden2 (HAVO, VWO, MBO) en hoog (HBO, WO)
+    # source: https://monitorgezondheid.nl/sites/default/files/2021-06/20160914%20Opbouw%20en%20instructie%20totaalbestand%20Gezondheidsmonitor%202012.pdf
+    education = factor(education, levels = c(1, 2, 3), ordered = TRUE)
+  )
 ```
 
 ## Age
