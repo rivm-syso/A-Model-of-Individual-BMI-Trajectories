@@ -24,7 +24,7 @@ body{text-align: justify}
 
 The purpose of this document is to clean and explore the data of the Doetinchem Cohort Study. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported. However, the Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017].
 
-Before we begin, we need to load the packages _tidyverse_, _haven_ and _vtable_ [@tidyverse2019; @haven2021; @vtable2021].
+Before we begin, we need to load the packages _tidyverse_, _haven_, _ggforce_ and _vtable_ [@tidyverse2019; @haven2021; @ggforce2022; @vtable2021].
 
 ```{r results = FALSE, message = FALSE, warning = FALSE}
 library(tidyverse)
@@ -387,8 +387,7 @@ stratum.per.participant.per.wave <- doetinchem.data %>%
     stratum = case_when(
       is.na(date) & cumsum(!is.na(date)) > 0 ~ "Out",
       TRUE ~ "In"
-    ),
-    stratum = factor(stratum, levels = c("In", "Out"))
+    )
   ) %>%
   ungroup()
 ```
@@ -415,53 +414,11 @@ ggplot(
     name = "Wave",
     breaks = seq(6)
   ) +
-  scale_fill_discrete(name = "Type") +
+  labs(fill = "Participating") +
   theme_void() +
   theme(
     axis.title.x = element_text(margin = margin(t = 4)),
-    axis.text.x = element_text(margin = margin(t = -12))
-  )
-```
-
-The transition rate in and out of the panel over time can also be determined more explicitly.
-
-```{r}
-transition.rates <- stratum.per.participant.per.wave %>%
-  group_by(participant.id) %>%
-  mutate(next.stratum = lead(stratum, order_by = wave)) %>%
-  ungroup() %>%
-  filter(!is.na(next.stratum)) %>%
-  count(wave, stratum, next.stratum, name = "transition.rate") %>%
-  group_by(wave, stratum) %>%
-  reframe(
-    stratum,
-    next.stratum,
-    transition.rate = transition.rate / sum(transition.rate)
-  )
-transition.rates
-```
-
-These transition rates can be visualised as matrices.
-
-```{r}
-ggplot(
-  mapping = aes(
-    x = stratum,
-    y = next.stratum,
-    fill = transition.rate,
-    label = sprintf("%.2f", transition.rate)
-  ),
-  data = transition.rates
-) +
-  geom_tile(alpha = 0.7) +
-  geom_text() +
-  labs(
-    x = "From",
-    y = "To",
-    fill = "Transition rate"
-  ) +
-  facet_wrap(
-    facets = ~ paste("Wave", wave, "to", wave + 1)
+    axis.text.x = element_text(margin = margin(t = -10))
   )
 ```
 
