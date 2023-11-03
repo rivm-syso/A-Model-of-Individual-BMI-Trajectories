@@ -198,14 +198,14 @@ background.data %>%
 
 ## Sex
 
-Let's verify that there are only 2 sexes. We can immediately check if there are any missing values.
+Let's verify that there are only two sexes. We can immediately check if there are any missing values.
 
 ```{r}
 background.data %>%
   count(sex)
 ```
 
-For our purpose, we want males encoded as a zero and females as a one. Let's change this.
+For our purpose, we want males encoded as a _0_ and females as a _1_. Let's change this.
 
 ```{r}
 background.data <- background.data %>%
@@ -263,7 +263,7 @@ background.data <- background.data %>%
 Each participant should only have one level of education across all waves, but it's possible that some participants increase their level of education as they age. Let's check, for each participant, whether their highest reached level of education does not go down over time.
 
 ```{r}
-background.data %>% # Moet education een factor zijn?
+background.data %>%
   group_by(participant.id) %>%
   arrange(wave) %>%
   summarise(
@@ -282,7 +282,7 @@ background.data <- background.data %>%
   ungroup()
 ```
 
-Participants with an increasing level of education with be assigned the last available entry as the one representing their true level of education. Although this imputation is not perfect, it is a simple solution which distorts the data as little as possible.
+Participants with an increasing level of education or with missing values will be assigned the last available entry as the one representing their true level of education. Although this imputation is not perfect, it is a simple solution which distorts the data as little as possible.
 
 ```{r}
 background.data <- background.data %>%
@@ -292,7 +292,7 @@ background.data <- background.data %>%
   ungroup()
 ```
 
-The LISS dataset measures education using six categories, while we are only interested in a three level scoring, so let's recode the variable. Education will then be measured as the highest level reached where the lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
+The LISS dataset measures education using six categories, while we are only interested in a three level scoring, so let's recode the variable. Education will then be measured as the highest level reached where the lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
 
 ```{r}
 background.data <- background.data %>%
@@ -335,7 +335,7 @@ background.data %>%
   summarise(missing = sum(is.na(age)))
 ```
 
-The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed.
+The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compare with the stated age.
 
 ```{r}
 background.data %>%
@@ -368,15 +368,16 @@ background.data <- background.data %>%
 
 The background questionnaires and the health questionnaires were loaded as separate datasets. We need to combine these to form a single dataset.
 
-## Clean Health Data Keys
+## Clean Keys
 
-The datasets will be joined on the keys _participant.id_ and _wave_, so we need to verify that the health dataset has no missing values for either these variables.
+The datasets will be joined on the keys _participant.id_ and _wave_, so we need to verify that the health dataset has no missing values for either these variables, nor duplicate waves.
 
 ```{r}
 health.data %>%
   summarise(
     missing.participant.id = sum(is.na(participant.id)),
-    missing.wave = sum(is.na(wave))
+    missing.wave = sum(is.na(wave)),
+    duplicate = n() - n_distinct(participant.id, wave)
   )
 ```
 
@@ -420,7 +421,7 @@ liss.data <- background.data %>%
 
 ## Clean Waves
 
-The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place, by assuming all waves were administered on the 15th of the month. We can also add a variable indicating the year to which the wave belongs.
+The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place by assuming all waves were administered on the 15th of the month. We can also add a variable indicating the year to which the wave belongs.
 
 ```{r}
 liss.data <- liss.data %>%
@@ -468,7 +469,7 @@ ggplot() +
     axis.ticks.y = element_blank()
   )
 ```
-Let's now verify that the participants filled in only one health questionaire per year, if we consider the round of February 2008 part of the wave of 2007.
+Let's now verify that the participants filled in only one health questionnaire per year, if we consider the round of February 2008 part of the wave of 2007.
 
 ```{r}
 liss.data %>%
@@ -607,7 +608,7 @@ liss.data <- liss.data %>%
 
 # Clean BMI
 
-[Placeholder for text]
+In this section, we will examine the columns _length_ and _weight_ from the health questionnaire and construct the new variable _bmi_.
 
 ## Age Limit
 
