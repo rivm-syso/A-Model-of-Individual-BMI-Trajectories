@@ -92,7 +92,7 @@ vtable(background.data, out = "return", missing = TRUE)
 
 ## Health Data
 
-Participants also filled in health questionnaires which includes information about their length and weight, their smoking habits and their alcohol consumption. The following loops over the names of the files we will load, extracting only the the relevant columns.
+Participants also filled in health questionnaires which includes information about their length and weight. The following loops over the names of the files we will load, extracting only the the relevant columns.
 
 ```{r}
 health.data <- map(
@@ -119,21 +119,7 @@ health.data <- map(
         "nomem_encr",
         "_m",
         "016",
-        "017",
-        "125",
-        "126",
-        "133",
-        "134",
-        "135",
-        "185",
-        "186",
-        "187",
-        "188",
-        "189",
-        "190",
-        "191",
-        "192",
-        "193"
+        "017"
       )
     )
   ) %>%
@@ -142,21 +128,7 @@ health.data <- map(
       participant.id = "nomem_encr",
       wave = ends_with("_m"),
       length = ends_with("016"),
-      weight = ends_with("017"),
-      ever_smoked = ends_with("125"),
-      smokes_now = ends_with("126"),
-      n_drinks = ends_with("133"),
-      drink_7days = ends_with("134"),
-      n_drinks_7days = ends_with("135"),
-      str_7days = ends_with("185"),
-      hrs_str = ends_with("186"),
-      min_str = ends_with("187"),
-      mod_7days = ends_with("188"),
-      hrs_mod = ends_with("189"),
-      min_mod = ends_with("190"),
-      walk_7days = ends_with("191"),
-      hrs_walk = ends_with("192"),
-      min_walk = ends_with("193")
+      weight = ends_with("017")
     )
 ) %>%
   bind_rows()
@@ -342,7 +314,7 @@ background.data <- background.data %>%
 
 ## Age
 
-Let's check if there are any participants who are missing their age.
+Let's check if there are any participants who have a missing value for their age. We immediately check if there are any minors in the data.
 
 ```{r}
 background.data %>%
@@ -352,12 +324,7 @@ background.data %>%
   )
 ```
 
-Let's keep only the adults in the dataset.
-
-```{r}
-background.data <- background.data %>%
-  filter(age >= 18)
-```
+We will keep only the adults in the dataset, but filtering the background data on specific waves will cause problems when combining the background data with the health data, so we remove the rows for minors later.
 
 The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compared with the stated age.
 
@@ -454,22 +421,19 @@ liss.data <- background.data %>%
 
 ## Clean Waves
 
-The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place by assuming all waves were administered on the 15th of the month. We can also add a variable indicating the year to which the wave belongs.
+The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place by assuming all waves were administered on the 15th of the month.
 
 ```{r}
 liss.data <- liss.data %>%
-  mutate(
-    date = as.Date(paste0(substr(wave, 1, 4), "-", substr(wave, 5, 6), "-15")),
-    wave.year = floor(wave / 100) # Remove in main
-  )
+  mutate(date = as.Date(paste0(substr(wave, 1, 4), "-", substr(wave, 5, 6), "-15")))
 ```
 
 We can check how many health questionnaires the participants filled in per year.
 
 ```{r}
 liss.data %>%
-  count(wave.year, participant.id) %>%
-  count(wave.year, n, name = "participants")
+  count(year(date), participant.id) %>%
+  count(year(date), n, name = "participants")
 ```
 
 This can also be visualised in a plot. As seen, the questionnaires were administered in two different months each wave. Most of the time, the year belonging to these paired months is the same. The exception is in 2007 and 2008. The round of February 2008 can be considered part of the wave of 2007. The frequency of the questionnaire was approximately one year, except between 2013 and 2016, when there was a gap, meaning the year 2014 was skipped.
@@ -482,10 +446,10 @@ ggplot() +
       xend = date,
       y = 0,
       yend = 1,
-      color = factor(wave.year)
+      color = factor(year(date))
     ),
     data = liss.data %>%
-      distinct(wave, date, wave.year)
+      distinct(wave, date, year(date))
   ) +
   labs(
     x = "Date",
@@ -506,7 +470,7 @@ Let's now verify that the participants filled in only one health questionnaire p
 
 ```{r}
 liss.data %>%
-  mutate(wave.year = if_else(wave == 200802, 2007, wave.year)) %>%
+  mutate(wave.year = if_else(wave == 200802, 2007, year(date))) %>%
   count(wave.year, participant.id) %>%
   count(wave.year, n, name = "participants")
 ```
@@ -516,9 +480,8 @@ Let's change the year of the wave of February 2008 to be 2007 and let's recode _
 ```{r}
 liss.data <- liss.data %>%
   mutate(
-    wave.year = if_else(wave == 200802, 2007, wave.year),
     wave = recode(
-      wave.year,
+      if_else(wave == 200802, 2007, year(date)),
       `2007` = 1,
       `2008` = 2,
       `2009` = 3,
@@ -535,6 +498,15 @@ liss.data <- liss.data %>%
       `2021` = 14
     )
   )
+```
+
+## Clean Age
+
+Now that the background data has been combined with the health data, we can filter out specific rows from the data applying to minors.
+
+```{r}
+liss.data <- liss.data %>%
+  filter(age >= 18)
 ```
 
 # Clean Health Data
@@ -1112,176 +1084,11 @@ ggplot(
   )
 ```
 
-<<<<<<< HEAD
-## Physical Activity
-
-```{r}
-liss.data %>%
-  count(pa.state)
-```
-=======
 Finally, let's examine how large a change in BMI the participants experience over the 14 waves. This, too, may be visualised in a density plot.
->>>>>>> wd
 
 ```{r}
 ggplot() +
   geom_density(
-<<<<<<< HEAD
-    mapping = aes(x = MVPA, colour = as.factor(sex)),
-    data = liss.data %>%
-      filter(!is.na(MVPA))
- )
-```
-
-```{r}
-ggplot() +
-  geom_freqpoly(
-    mapping = aes(
-      x = age,
-      colour = as.factor(pa.state)
-    ),
-    data = liss.data,
-    bins = 30
-  ) +
-  facet_wrap(~ sex)
-```
-
-## Smoking
-
-Number of people who ever smoked per wave (only year).
-
-```{r}
-liss.data %>%
-  count(ever_smoked, wave.year) %>%
-  spread(ever_smoked, n) %>%
-  rename("yes"="1", "no"="2")
-```
-
-Number and percentage of people who smokes at the moment; had smoked before but stopped; and have never smoked:
-
-```{r}
-toplot<-liss.data %>%
-  add_count(wave.year, name = "n_in_wave") %>%
-  filter(is.na(ever_smoked)==FALSE) %>%
-  count(smoking_status, wave.year, n_in_wave) %>%
-  mutate(percentage=round((n/n_in_wave)*100,2))
-ggplot(toplot, aes(x=wave.year, y=n, group=smoking_status))+geom_line(aes(color=smoking_status))
-```
-
-```{r}
-ggplot(toplot, aes(x=wave.year, y=percentage, group=smoking_status))+geom_line(aes(color=smoking_status))
-```
-
-Check transactions again
-
-```{r}
-transitions <- liss.data %>%
-  filter(
-    !is.na(ever_smoked),
-    !is.na(smoking_status_corr),
-    wave.year < max(wave.year)
-  ) %>%
-  select(participant.id, sex, wave.year, smoking_status_corr) %>%
-  inner_join(
-    liss.data %>%
-      filter(
-        wave.year > min(wave.year),
-        !is.na(smoking_status_corr)
-      ) %>%
-      mutate(wave.year = wave.year - 1) %>%
-      select(participant.id, wave.year, smoking_status_corr),
-    by = c("participant.id", "wave.year")
-  ) %>%
-  count(sex, "0" = smoking_status_corr.x, "1" = smoking_status_corr.y) %>%
-  mutate(row.id = seq(n())) %>%
-  pivot_longer(c("0", "1")) %>%
-  mutate(name = as.numeric(name))
-transitions
-```
-
-[Placeholder for text]
-
-```{r}
-ggplot(
-  mapping = aes(
-    x = name,
-    id = row.id,
-    split = value,
-    value = n
-  ),
-  data = transitions
-) +
-  geom_parallel_sets(
-    mapping = aes(fill = as.factor(sex)),
-    alpha = 0.5,
-    axis.width = 0.1
-  ) +
-  geom_parallel_sets_axes(
-    axis.width = 0.1,
-    fill = "grey"
-  ) +
-  geom_parallel_sets_labels() +
-  scale_fill_discrete(
-    name = "Sex",
-    labels = c("Male", "Female")
-  ) +
-  theme_void()
-```
-
-[Placeholder for text]
-
-```{r}
-transitions.per.wave <- liss.data %>%
-  expand(participant.id, wave) %>%
-  left_join(
-    liss.data %>%
-      filter(
-        !is.na(ever_smoked),
-        !is.na(smoking_status_corr)
-      ) %>%
-      select(participant.id, sex, wave, smoking_status_corr),
-    by = c("participant.id", "wave")
-  ) %>%
-  mutate(stratum = ifelse(is.na(smoking_status_corr), "unknown", smoking_status_corr))
-transitions.per.wave
-```
-
-[Placeholder for text]
-
-```{r}
-ggplot(
-  mapping = aes(
-    x = wave,
-    id = participant.id,
-    split = stratum,
-    value = 1,
-    fill = stratum
-  ),
-  data = transitions.per.wave
-) +
-  geom_parallel_sets(
-    fill = "grey",
-    alpha = 0.5
-  ) +
-  geom_parallel_sets_axes(axis.width = 0.4) +
-  scale_x_continuous(
-    name = "Wave",
-    breaks = seq(13)
-  ) +
-  scale_fill_discrete(
-    name = "Smoke Status",
-    labels = c("Never Smoked", "Smokes", "Stopped", "Unknown")
-  ) +
-  theme_void() +
-  theme(
-    axis.title.x = element_text(margin = margin(t = 4)),
-    axis.text.x = element_text(margin = margin(t = -12))
-  )
-```
-
-[Placeholder for text]
-
-=======
     mapping = aes(x = difference),
     data = liss.data %>%
       group_by(participant.id) %>%
@@ -1293,7 +1100,6 @@ ggplot(
   )
 ```
 
->>>>>>> wd
 # Write Output
 
 Finally, we write the cleaned data for the LISS panel to a CSV file.
