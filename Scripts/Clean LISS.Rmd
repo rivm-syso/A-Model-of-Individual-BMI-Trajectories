@@ -1339,7 +1339,7 @@ ggplot(
   )
 ```
 
-Finally, let's examine how large a change in BMI the participants experience over the 6 waves. This, too, may be visualised in a density plot.
+Finally, let's examine how large a change in BMI the participants experience over the 14 waves. This, too, may be visualised in a density plot.
 
 ```{r}
 ggplot() +
