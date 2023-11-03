@@ -32,7 +32,7 @@ library(tidyverse)
 
 # Load Input
 
-The historical BMI data of VZinfo comes in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
+The historical BMI data of VZinfo comes in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight ($25 - 30 kg/m^2$) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
 
 ```{r}
 trend.volwassenen.met.overgewicht <- read_delim(
@@ -47,7 +47,7 @@ trend.volwassenen.met.overgewicht <- read_delim(
 trend.volwassenen.met.overgewicht
 ```
 
-Let's now load the dataset containing the prevalences of obesity over time.
+Let's now load the dataset containing the prevalences of obesity (values of $30 kg/m^2$ and above) over time.
 
 ```{r}
 trend.volwassenen.met.obesitas <- read_delim(
@@ -64,7 +64,7 @@ trend.volwassenen.met.obesitas
 
 # Clean Data
 
-We clean the data by first pivoting the datasets such that we obtain a one column with the prevalences and a new column indicating whether this applies to males of females. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
+We clean the data by first pivoting the datasets such that we obtain a one column with the prevalences and a new column indicating whether this applies to males, encoded as a _0_, or females, encoded as a _1_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
 
 ```{r}
 bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
