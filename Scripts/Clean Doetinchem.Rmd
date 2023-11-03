@@ -76,7 +76,7 @@ doetinchem.data %>%
 
 ## Sex
 
-Let's rename the column indicating the sex of the participant from _gesl_ to _sex_ and recode the variable. A '0' will encode males, whereas females are encoded by a '1'.
+Let's rename the column indicating the sex of the participant from _gesl_ to _sex_ and recode the variable. A _0_ will encode males, whereas females are encoded by a _1_.
 
 ```{r}
 doetinchem.data <- doetinchem.data %>%
@@ -151,7 +151,7 @@ doetinchem.data %>%
 
 ## Education
 
-Let's rename the column indicating the level of education of the participant from _ses3_ to _education_ and recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by '1', applies to people with intermediate secondary education or less, the medium level, encoded by '2', aggregates higher secondary- and intermediate vocational education and highest level, encoded by '3', includes higher vocational education and university.
+Let's rename the column indicating the level of education of the participant from _ses3_ to _education_ and recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
 
 ```{r}
 doetinchem.data <- doetinchem.data %>%
@@ -589,8 +589,7 @@ ggplot() +
   geom_density(
     mapping = aes(
       x = bmi,
-      colour = sex,
-      linetype = factor(wave)
+      colour = factor(wave)
     ),
     data = doetinchem.data %>%
       filter(bmi > 15, bmi < 45)
@@ -599,11 +598,7 @@ ggplot() +
   labs(
     x = "BMI",
     y = "Probability density",
-    linetype = "Wave"
-  ) +
-  scale_color_discrete(
-    name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    col = "Wave"
   )
 ```
 
