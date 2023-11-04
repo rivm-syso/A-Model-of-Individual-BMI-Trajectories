@@ -22,7 +22,7 @@ body{text-align: justify}
 
 # Introduction
 
-The purpose of this document is to clean and explore the data of the Longitudinal Internet studies for the Social Sciences (LISS) panel. This panel is a representative sample of Dutch individuals who participate in monthly Internet surveys [@Scherpenzeel2010]. The panel is based on a true probability sample of households drawn from the population register. Households that could not otherwise participate are provided with a computer and Internet connection. A longitudinal survey is fielded in the panel every year, covering a large variety of domains including health, work, education, income, housing, time use, political views, values and personality.
+The purpose of this document is to clean and explore the data of the Longitudinal Internet studies for the Social Sciences (LISS). This panel is a representative sample of Dutch individuals who participate in monthly Internet surveys [@Scherpenzeel2010]. The panel is based on a true probability sample of households drawn from the population register. Households that could not otherwise participate are provided with a computer and Internet connection. A longitudinal survey is fielded in the panel every year, covering a large variety of domains including health, work, education, income, housing, time use, political views, values and personality.
 
 Before we begin, we need to load the packages _tidyverse_, _haven_, _ggforce_ and _vtable_ [@tidyverse2019; @haven2021; @ggforce2022; @vtable2021].
 
@@ -335,7 +335,7 @@ background.data %>%
   summarise(missing = sum(is.na(age)))
 ```
 
-The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compare with the stated age.
+The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compared with the stated age.
 
 ```{r}
 background.data %>%
@@ -351,7 +351,7 @@ background.data %>%
   count(mismatch)
 ```
 
-Let's remove all participants with inconsistencies with their age and year of birth. The variable _ year.of.birth_ is now no longer needed, so it is removed from the dataset.
+Let's remove all participants with inconsistencies with their age and year of birth. The variable _year.of.birth_ is now no longer needed, so it is removed from the dataset.
 
 ```{r}
 background.data <- background.data %>%
@@ -690,7 +690,7 @@ liss.data %>%
   )
 ```
 
-Let's remove all participants with an unrealistic length.
+Given that the LISS data are self-reported, errors in filling out the questionnaire may occur. So let's remove all participants with an unrealistic length.
 
 ```{r}
 liss.data <- liss.data %>%
@@ -768,7 +768,7 @@ liss.data %>%
   count(missing)
 ```
 
-We will remove these waves from the dataset.
+It is nearly impossible to impute reasonable values for these entries, so we will remove these waves from the dataset.
 
 ```{r}
 # liss.data <- liss.data %>%
@@ -792,7 +792,7 @@ liss.data %>%
   )
 ```
 
-Let's remove all participants with an unrealistic weight.
+Given that the LISS data are self-reported, errors in filling out the questionnaire may occur. So let's remove all participants with an unrealistic weight.
 
 ```{r}
 liss.data <- liss.data %>%
@@ -1323,11 +1323,10 @@ ggplot(
     filter(!is.na(bmi)) %>% # Remove in main
     filter(n() == 14) %>%
     nest() %>%
-    ungroup(participant.id) %>%
+    ungroup() %>%
     slice_sample(n = 15) %>%
     mutate(participant.id = seq(n())) %>%
     unnest(data) %>%
-    ungroup() %>%
     mutate(bmi = bmi + rnorm(n(), 0, 0.5))
 ) +
   geom_line() +

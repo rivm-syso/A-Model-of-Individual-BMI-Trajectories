@@ -622,11 +622,10 @@ ggplot(
     group_by(participant.id) %>%
     filter(n() == 6) %>%
     nest() %>%
-    ungroup(participant.id) %>%
+    ungroup() %>%
     slice_sample(n = 15) %>%
     mutate(participant.id = seq(n())) %>%
     unnest(data) %>%
-    ungroup() %>%
     mutate(bmi = bmi + rnorm(n(), 0, 0.5))
 ) +
   geom_line() +
