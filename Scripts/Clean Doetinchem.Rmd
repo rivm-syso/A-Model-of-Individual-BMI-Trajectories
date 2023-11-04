@@ -74,6 +74,14 @@ doetinchem.data %>%
   summarise(missing = sum(is.na(participant.id)))
 ```
 
+And let's check that each row contains a unique _participant.id_.
+
+```{r}
+doetinchem.data %>%
+  count(participant.id) %>%
+  summarise(duplicate = sum(n > 1))
+```
+
 ## Sex
 
 Let's rename the column indicating the sex of the participant from _gesl_ to _sex_ and recode the variable. A _0_ will encode males, whereas females are encoded by a _1_.
