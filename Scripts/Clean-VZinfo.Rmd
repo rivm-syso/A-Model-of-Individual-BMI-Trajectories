@@ -32,10 +32,10 @@ library(tidyverse)
 
 # Load Input
 
-The historical BMI data of VZinfo comes in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight ($25 - 30 kg/m^2$) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
+The historical BMI data of VZinfo come in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight ($25 - 30 kg/m^2$) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
 
 ```{r}
-trend.volwassenen.met.overgewicht <- read_delim(
+prevalence.of.overweight.by.year.and.sex <- read_delim(
   file = "../Input-Data/VZinfo/trend-volwassenen-met-ov.csv",
   delim = ";",
   col_types = cols_only(
@@ -44,13 +44,13 @@ trend.volwassenen.met.overgewicht <- read_delim(
     "vrouwen gestand.*" = col_double()
   )
 )
-trend.volwassenen.met.overgewicht
+prevalence.of.overweight.by.year.and.sex
 ```
 
 Let's now load the dataset containing the prevalences of obesity (values of $30 kg/m^2$ and above) over time.
 
 ```{r}
-trend.volwassenen.met.obesitas <- read_delim(
+prevalence.of.obesity.by.year.and.sex <- read_delim(
   file = "../Input-Data/VZinfo/trend-volwassenen-met-ob.csv",
   delim = ";",
   col_types = cols_only(
@@ -59,7 +59,7 @@ trend.volwassenen.met.obesitas <- read_delim(
     "vrouwen gestand.*" = col_double()
   )
 )
-trend.volwassenen.met.obesitas
+prevalence.of.obesity.by.year.and.sex
 ```
 
 # Clean Data
@@ -67,7 +67,7 @@ trend.volwassenen.met.obesitas
 We clean the data by first pivoting the datasets such that we obtain a one column with the prevalences and a new column indicating whether this applies to males, encoded as a _0_, or females, encoded as a _1_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
 
 ```{r}
-bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
+bmi.by.year.and.sex <- prevalence.of.overweight.by.year.and.sex %>%
   pivot_longer(
     cols = !Category,
     names_pattern = "(.*) .*",
@@ -75,7 +75,7 @@ bmi.by.year.and.sex <- trend.volwassenen.met.overgewicht %>%
     values_to = "prevalence_[25,Inf)"
   ) %>%
   full_join(
-    trend.volwassenen.met.obesitas %>%
+    prevalence.of.obesity.by.year.and.sex %>%
       pivot_longer(
         cols = !Category,
         names_pattern = "(.*) .*",
