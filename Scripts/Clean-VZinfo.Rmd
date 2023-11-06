@@ -1,7 +1,7 @@
 ---
 title: "Clean and Explore VZinfo Data"
 author: "Laurens Bogaardt"
-date: "2023-09-21"
+date: "2023-12-15"
 output:
   html_document:
     df_print: paged
@@ -22,7 +22,7 @@ body{text-align: justify}
 
 # Introduction
 
-The purpose of this document is to clean and explore the historical BMI data of VZinfo. Historical data about BMI were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography.
+The purpose of this document is to clean and explore the historical BMI data of VZinfo. These data were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography.
 
 Before we begin, we need to load the package _tidyverse_ [@tidyverse2019].
 
@@ -64,7 +64,7 @@ prevalence.of.obesity.by.year.and.sex
 
 # Clean Data
 
-We clean the data by first pivoting the datasets such that we obtain a one column with the prevalences and a new column indicating whether this applies to males, encoded as a _0_, or females, encoded as a _1_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
+We clean the data by first pivoting the datasets such that we obtain one column with the prevalences and a new column indicating whether this applies to males, encoded as a _0_, or females, encoded as a _1_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
 
 ```{r}
 bmi.by.year.and.sex <- prevalence.of.overweight.by.year.and.sex %>%
