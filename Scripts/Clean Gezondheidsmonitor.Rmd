@@ -1,7 +1,7 @@
 ---
-title: "Clean and Explore Gezondheidsmonitor Volwassenen"
+title: "Clean and Explore Gezondheidsmonitor Data"
 author: "Laurens Bogaardt"
-date: "2023-02-01"
+date: "2023-12-15"
 output:
   html_document:
     df_print: paged
@@ -447,6 +447,16 @@ gezondheidsmonitor.data %>%
   count(year, drinker_last_year, drinker_over_a_week, exdrinker, neverdrinker, alcohol_status)
 ``` 
 
+# Order Rows and Columns
+
+As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  select(year, sex, education, age, weight, bmi, roker, exroker, nooitroker, alcohol_status, drinker_last_year, exdrinker, glasses_per_week, neverdrinker, drinker_over_a_week) %>%
+  arrange(year, sex, education, age, weight)
+```
+
 # Explore Data
 
 We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
@@ -472,7 +482,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = year,
+      x = factor(year),
       y = n,
       fill = factor(year)
     ),
@@ -580,7 +590,7 @@ We can visualise the age distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = year,
+      x = factor(year),
       y = age,
       fill = factor(year)
     ),
@@ -633,7 +643,7 @@ We can visualise the BMI distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = year,
+      x = factor(year),
       y = bmi,
       fill = factor(year)
     ),

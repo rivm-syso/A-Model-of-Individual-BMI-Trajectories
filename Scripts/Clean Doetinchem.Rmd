@@ -1,7 +1,7 @@
 ---
-title: "Clean and Explore Doetinchem Cohort Study"
+title: "Clean and Explore Doetinchem Data"
 author: "Laurens Bogaardt"
-date: "2023-02-01"
+date: "2023-12-15"
 output:
   html_document:
     df_print: paged
@@ -286,8 +286,7 @@ Let's rename the column indicating the participant's BMI from _qindex_ to _bmi_.
 
 ```{r}
 doetinchem.data <- doetinchem.data %>%
-  rename(bmi = qindex) %>%
-  select(participant.id, sex, education, wave, date, age, bmi)
+  rename(bmi = qindex)
 ```
 
 We check whether there are any missing values.
@@ -318,6 +317,16 @@ doetinchem.data %>%
 
 A key feature of the Doetinchem Cohort Study is that characteristics such as weight and height were measured by research assistants instead of being self-reported. So, even though some BMI values are above the threshold, we believe we can trust these values and that there is no need to remove them from our dataset.
 
+## Order Rows and Columns
+
+As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
+
+```{r}
+doetinchem.data <- doetinchem.data %>%
+  select(participant.id, sex, education, wave, date, age, bmi) %>%
+  arrange(participant.id, wave)
+```
+
 # Explore Data
 
 We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
@@ -342,7 +351,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = n,
       fill = factor(wave)
     ),
@@ -370,7 +379,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = waves,
+      x = factor(waves),
       y = n,
       fill = factor(waves)
     ),
@@ -404,7 +413,7 @@ These data can be visualised, showing the transitions in and out of the panel ov
 ```{r}
 ggplot(
   mapping = aes(
-    x = wave,
+    x = factor(wave),
     id = participant.id,
     split = stratum,
     value = 1,
@@ -417,11 +426,10 @@ ggplot(
     alpha = 0.5
   ) +
   geom_parallel_sets_axes(axis.width = 0.4) +
-  scale_x_continuous(
-    name = "Wave",
-    breaks = seq(6)
+  labs(
+    x = "Wave",
+    fill = ""
   ) +
-  labs(fill = "Participating") +
   theme_void() +
   theme(
     axis.title.x = element_text(margin = margin(t = 4)),
@@ -450,7 +458,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = prevalence,
       fill = sex
     ),
@@ -487,7 +495,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = prevalence,
       fill = education
     ),
@@ -524,7 +532,7 @@ We can visualise the age distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = age,
       fill = factor(wave)
     ),
@@ -544,7 +552,7 @@ ggplot() +
   geom_density(
     mapping = aes(
       x = age,
-      col = as.factor(wave)
+      col = factor(wave)
     ),
     data = doetinchem.data
   ) +
@@ -576,7 +584,7 @@ We can visualise the BMI distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = bmi,
       fill = factor(wave)
     ),
@@ -589,7 +597,7 @@ ggplot() +
   )
 ```
 
-We can also visualise the probability density of the BMI distribution by wave and sex.
+We can also visualise the probability density of the BMI distribution by wave.
 
 ```{r}
 ggplot() +
@@ -598,10 +606,8 @@ ggplot() +
       x = bmi,
       colour = factor(wave)
     ),
-    data = doetinchem.data %>%
-      filter(bmi > 15, bmi < 45)
+    data = doetinchem.data
   ) +
-  xlim(15, 45) +
   labs(
     x = "BMI",
     y = "Probability density",
@@ -634,22 +640,6 @@ ggplot(
     x = "Wave",
     y = "BMI",
     col = "Participant"
-  )
-```
-
-Lastly, let's examine how large a change in BMI the participants experience over the six waves. This, too, may be visualised in a density plot.
-
-```{r}
-ggplot() +
-  geom_density(
-    mapping = aes(x = difference),
-    data = doetinchem.data %>%
-      group_by(participant.id) %>%
-      summarise(difference = diff(range(bmi)), .groups = "drop")
-  ) +
-  labs(
-    x = "BMI differences",
-    y = "Probability density"
   )
 ```
 

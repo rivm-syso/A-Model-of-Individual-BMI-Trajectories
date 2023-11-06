@@ -1,7 +1,7 @@
 ---
 title: "Clean and Explore LISS Data"
 author: "Laurens Bogaardt & Katalin Katona"
-date: "2023-02-01"
+date: "2023-12-15"
 output:
   html_document:
     df_print: paged
@@ -86,8 +86,7 @@ background.data <- map(
       age = "leeftijd"
     )
 ) %>%
-  bind_rows() %>%
-  arrange(participant.id, wave)
+  bind_rows()
 vtable(background.data, out = "return", missing = TRUE)
 ```
 
@@ -160,8 +159,7 @@ health.data <- map(
       min_walk = ends_with("193")
     )
 ) %>%
-  bind_rows() %>%
-  arrange(participant.id, wave)
+  bind_rows()
 vtable(health.data, out = "return", missing = TRUE)
 ```
 
@@ -173,11 +171,26 @@ In this section, we will examine a few aspects of the background dataset. We wil
 background.data <- background.data %>%
   inner_join(
     health.data %>%
+      filter(!is.na(participant.id)) %>%
       distinct(participant.id),
     by = "participant.id"
   )
 vtable(background.data, out = "return", missing = TRUE)
 ```
+
+Let's check if the background data covers everyone who filled in the health questionnaire.
+
+```{r}
+health.data %>%
+  distinct(participant.id) %>%
+  setdiff(
+    background.data %>%
+      distinct(participant.id)
+  ) %>%
+  count()
+```
+
+It seems one participant will be missed when using the available background data, but this does not seem like a big issue.
 
 ## Waves
 
@@ -278,6 +291,7 @@ We will remove participants with an unsorted level of education from the dataset
 ```{r}
 background.data <- background.data %>%
   group_by(participant.id) %>%
+  arrange(wave) %>%
   filter(!is.unsorted(education, na.rm = TRUE)) %>%
   ungroup()
 ```
@@ -428,8 +442,7 @@ liss.data <- liss.data %>%
   mutate(
     date = as.Date(paste0(substr(wave, 1, 4), "-", substr(wave, 5, 6), "-15")),
     wave.year = floor(wave / 100) # Remove in main
-  ) %>%
-  relocate(date, wave.year, .after = wave)
+  )
 ```
 
 We can check how many health questionnaires the participants filled in per year.
@@ -450,7 +463,7 @@ ggplot() +
       xend = date,
       y = 0,
       yend = 1,
-      color = as.factor(wave.year)
+      color = factor(wave.year)
     ),
     data = liss.data %>%
       distinct(wave, date, wave.year)
@@ -469,6 +482,7 @@ ggplot() +
     axis.ticks.y = element_blank()
   )
 ```
+
 Let's now verify that the participants filled in only one health questionnaire per year, if we consider the round of February 2008 part of the wave of 2007.
 
 ```{r}
@@ -728,7 +742,7 @@ liss.data <- liss.data %>%
         diff(range(length, na.rm = TRUE)) > 8
       )
   ) %>%
-ungroup()
+  ungroup()
 ```
 
 ## Weight
@@ -830,7 +844,7 @@ liss.data <- liss.data %>%
         (diff(range(weight, na.rm = TRUE)) > 80)
       )
   ) %>%
-ungroup()
+  ungroup()
 ```
 
 ## BMI
@@ -840,7 +854,6 @@ We can construct the new variable _bmi_ from _length_ and _weight_. These latter
 ```{r}
 liss.data <- liss.data %>%
   mutate(bmi = weight / (length / 100) ^ 2) %>%
-  relocate(bmi, .after = "weight") %>%
   select(-length, -weight)
 ```
 
@@ -1003,6 +1016,16 @@ liss.data <- liss.data %>%
 
 [Placeholder for text]
 
+# Order Rows and Columns
+
+As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
+
+```{r}
+liss.data <- liss.data %>%
+  select(participant.id, sex, education, wave, date, age, bmi, wave.year, ever_smoked, smokes_now, n_drinks, drink_7days, n_drinks_7days, MVPA, pa.state, smoking_status, smoking_status_corr) %>%
+  arrange(participant.id, wave)
+```
+
 # Explore Data
 
 We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
@@ -1028,7 +1051,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = n,
       fill = factor(wave)
     ),
@@ -1056,7 +1079,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = waves,
+      x = factor(wave),
       y = n,
       fill = factor(waves)
     ),
@@ -1099,7 +1122,7 @@ These data can be visualised, showing the transitions in and out of the panel ov
 ```{r}
 ggplot(
   mapping = aes(
-    x = wave,
+    x = factor(wave),
     id = participant.id,
     split = stratum,
     value = 1,
@@ -1112,11 +1135,10 @@ ggplot(
     alpha = 0.5
   ) +
   geom_parallel_sets_axes(axis.width = 0.4) +
-  scale_x_continuous(
-    name = "Wave",
-    breaks = seq(14)
+  scale_fill_discrete(
+    x = "Wave",
+    fill = ""
   ) +
-  scale_fill_discrete(name = "Participating") +
   theme_void() +
   theme(
     axis.title.x = element_text(margin = margin(t = 4)),
@@ -1145,7 +1167,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = prevalence,
       fill = sex
     ),
@@ -1182,7 +1204,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = prevalence,
       fill = education
     ),
@@ -1219,7 +1241,7 @@ We can visualise the age distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = age,
       fill = factor(wave)
     ),
@@ -1239,7 +1261,7 @@ ggplot() +
   geom_density(
     mapping = aes(
       x = age,
-      col = as.factor(wave)
+      col = factor(wave)
     ),
     data = liss.data
   ) +
@@ -1272,7 +1294,7 @@ We can visualise the BMI distribution in a boxplot.
 ggplot() +
   geom_boxplot(
     mapping = aes(
-      x = wave,
+      x = factor(wave),
       y = bmi,
       fill = factor(wave)
     ),
@@ -1335,22 +1357,6 @@ ggplot(
     x = "Wave",
     y = "BMI",
     col = "Participant"
-  )
-```
-
-Finally, let's examine how large a change in BMI the participants experience over the 14 waves. This, too, may be visualised in a density plot.
-
-```{r}
-ggplot() +
-  geom_density(
-    mapping = aes(x = difference),
-    data = liss.data %>%
-      group_by(participant.id) %>%
-      summarise(difference = diff(range(bmi)), .groups = "drop")
-  ) +
-  labs(
-    x = "BMI differences",
-    y = "Probability density"
   )
 ```
 
