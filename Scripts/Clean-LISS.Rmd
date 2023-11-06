@@ -735,13 +735,13 @@ liss.data <- liss.data %>%
   )
 ```
 
-# Order Rows and Columns
+## Order Rows and Columns
 
 As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
 
 ```{r}
 liss.data <- liss.data %>%
-  select(participant.id, sex, education, wave, date, age, bmi, wave.year, ever_smoked, smokes_now, n_drinks, drink_7days, n_drinks_7days, MVPA, pa.state, smoking_status, smoking_status_corr) %>%
+  select(participant.id, sex, education, wave, date, age, bmi) %>%
   arrange(participant.id, wave)
 ```
 

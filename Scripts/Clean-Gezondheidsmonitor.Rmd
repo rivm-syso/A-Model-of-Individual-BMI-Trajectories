@@ -195,13 +195,13 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   filter(!is.na(bmi))
 ```
 
-# Order Rows and Columns
+## Order Rows and Columns
 
 As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  select(year, sex, education, age, weight, bmi, roker, exroker, nooitroker, alcohol_status, drinker_last_year, exdrinker, glasses_per_week, neverdrinker, drinker_over_a_week) %>%
+  select(year, sex, education, age, weight, bmi) %>%
   arrange(year, sex, education, age, weight)
 ```
 
