@@ -114,14 +114,7 @@ health.data <- map(
   ),
   .f = ~ read_sav(
     file = paste0("../Input-Data/LISS/", .),
-    col_select = ends_with(
-      c(
-        "nomem_encr",
-        "_m",
-        "016",
-        "017"
-      )
-    )
+    col_select = ends_with(c("nomem_encr", "_m", "016", "017"))
   ) %>%
     zap_labels() %>%
     rename(
@@ -449,7 +442,7 @@ ggplot() +
       color = factor(year(date))
     ),
     data = liss.data %>%
-      distinct(wave, date, year(date))
+      distinct(wave, date)
   ) +
   labs(
     x = "Date",
