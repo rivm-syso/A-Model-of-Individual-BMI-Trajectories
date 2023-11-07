@@ -1035,13 +1035,8 @@ ggplot() +
       colour = factor(wave)
     ),
     data = liss.data %>%
-      filter(
-        bmi > 15,
-        bmi < 45,
-        wave %% 2 == 1
-      )
+      filter(wave %% 2 == 1)
   ) +
-  xlim(15, 45) +
   labs(
     x = "BMI",
     y = "Probability density",
@@ -1074,22 +1069,6 @@ ggplot(
     x = "Wave",
     y = "BMI",
     col = "Participant"
-  )
-```
-
-Finally, let's examine how large a change in BMI the participants experience over the 14 waves. This, too, may be visualised in a density plot.
-
-```{r}
-ggplot() +
-  geom_density(
-    mapping = aes(x = difference),
-    data = liss.data %>%
-      group_by(participant.id) %>%
-      summarise(difference = diff(range(bmi)), .groups = "drop")
-  ) +
-  labs(
-    x = "BMI differences",
-    y = "Probability density"
   )
 ```
 

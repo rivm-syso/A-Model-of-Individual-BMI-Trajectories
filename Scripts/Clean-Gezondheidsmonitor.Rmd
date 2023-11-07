@@ -411,13 +411,8 @@ ggplot() +
       x = bmi,
       colour = factor(year)
     ),
-    data = gezondheidsmonitor.data %>%
-      filter(
-        bmi > 15,
-        bmi < 45
-      )
+    data = gezondheidsmonitor.data
   ) +
-  xlim(15, 45) +
   labs(
     x = "BMI",
     y = "Probability density",
