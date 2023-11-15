@@ -52,7 +52,7 @@ In the analysis below, we will make use of the population level distribution par
 population.level.distribution.parameters <- read_csv(
   file = "Population Level Distribution of BMI.csv",
   col_type = cols(
-    "sex" = col_factor(),
+    sex = col_factor(levels = c("0", "1")),
     .default = col_double()
   )
 )
@@ -67,7 +67,7 @@ We will also make use of the historical trend parameters which were previously e
 historical.trend.parameters <- read_csv(
   file = "Historical Trend of BMI.csv",
   col_type = cols(
-    "sex" = col_factor(),
+    sex = col_factor(levels = c("0", "1")),
     .default = col_double()
   )
 )
@@ -84,13 +84,13 @@ In the chunk below, we have limited the output. This is because the Doetinchem d
 doetinchem.data <- read_csv(
   file = paste0(input.data.path, "/Risk Factors/Doetinchem.csv"),
   col_type = cols_only(
-    "participant.id" = col_character(),
-    "sex" = col_factor(),
-    "education" = col_factor(),
-    "wave" = col_integer(),
-    "date" = col_date(),
-    "age" = col_double(),
-    "bmi" = col_double()
+    participant.id = col_character(),
+    sex = col_factor(levels = c("0", "1")),
+    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
+    wave = col_integer(),
+    date = col_date(),
+    age = col_double(),
+    bmi = col_double()
   )
 ) %>%
   filter(
@@ -107,13 +107,13 @@ In the chunk below, we have limited the output. This is because the LISS dataset
 liss.data <- read_csv(
   file = paste0(input.data.path, "/Risk Factors/LISS.csv"),
   col_type = cols_only(
-    "participant.id" = col_character(),
-    "sex" = col_factor(),
-    "education" = col_factor(),
-    "wave" = col_integer(),
-    "date" = col_date(),
-    "age" = col_double(),
-    "bmi" = col_double()
+    participant.id = col_character(),
+    sex = col_factor(levels = c("0", "1")),
+    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
+    wave = col_integer(),
+    date = col_date(),
+    age = col_double(),
+    bmi = col_double()
   )
 ) %>%
   filter(
@@ -147,7 +147,7 @@ longitudinal.bmi.data <- doetinchem.data %>%
         cols = contains("education"),
         names_to = c(".value", "education"),
         names_pattern = "(.*)\\.(.)",
-        names_transform = list(education = as.factor)
+        names_transform = list(education = as.ordered)
       ),
     by = c("sex", "education")
   ) %>%
@@ -274,7 +274,7 @@ ggplot(
   ) +
   facet_wrap(
     facets = vars(sex),
-    labeller = labeller(sex = c(`0` = "Males", `1` = "Female"))
+    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
   )
 ```
 <center>Figure 2</center>
@@ -310,7 +310,7 @@ ggplot(
   ) +
   facet_wrap(
     facets = vars(sex),
-    labeller = labeller(sex = c(`0` = "Males", `1` = "Female"))
+    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
   )
 ```
 <center>Figure 3</center>

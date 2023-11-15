@@ -53,8 +53,8 @@ bmi.data <- read_csv(
   file = paste0(input.data.path, "/Risk Factors/Gezondheidsmonitor.csv"),
   col_types = cols_only(
     year = col_integer(),
-    sex = col_factor(),
-    education = col_factor(),
+    sex = col_factor(levels = c("0", "1")),
+    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
     age = col_integer(),
     weight = col_double(),
     bmi = col_double()
@@ -242,7 +242,7 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("Male", "Female")
+    labels = c("0" = "Male", "1" = "Female")
   ) +
   labs(
     x = "BMI",
@@ -294,7 +294,7 @@ ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   ) +
   labs(
     x = "BMI",
@@ -347,11 +347,11 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("Male", "Female")
+    labels = c("0" = "Male", "1" = "Female")
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   ) +
   labs(
     x = "BMI",
@@ -741,7 +741,7 @@ ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   ) +
   scale_colour_discrete(
     name = "Parameter",
@@ -847,7 +847,7 @@ bmi.parametric.plot <- ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   ) +
   scale_colour_discrete(
     name = "Parameter",
@@ -905,7 +905,7 @@ bmi.parametric.plot +
   ) +
   scale_shape_discrete(
     name = "Level of education",
-    labels = c("Low", "Medium", "High")
+    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
   )
 ```
 <center>Figure 13</center>
