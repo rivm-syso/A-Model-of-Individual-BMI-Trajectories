@@ -924,7 +924,7 @@ bmi.data <- bmi.data %>%
         cols = contains("education"),
         names_to = c(".value", "education"),
         names_pattern = "(.*.education).(.)",
-        names_transform = list(education = as.factor)
+        names_transform = list(education = as.ordered)
       ),
     by = c("sex", "education")
   ) %>%
