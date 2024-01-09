@@ -86,6 +86,7 @@ Let's start by joining the data related to the prevalences of overweight and obe
 ```{r}
 bmi.and.bmi.parameters.by.year.and.sex <- bmi.by.year.and.sex %>%
   pivot_wider(
+    names_from = bmi,
     values_from = prevalence
   ) %>%
   left_join(
