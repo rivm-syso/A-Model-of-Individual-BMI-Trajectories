@@ -1,7 +1,7 @@
 ---
 title: "Population Level Distribution of BMI"
 author: "Laurens Bogaardt"
-date: "2023-09-21"
+date: "2024-02-15"
 output:
   html_document:
     df_print: paged
@@ -58,7 +58,6 @@ bmi.data <- read_csv(
     bmi = col_double()
   )
 ) %>%
-  filter(!is.na(bmi)) %>%
   mutate(age = age + 0.5)
 vtable(bmi.data, out = "return", missing = TRUE)
 ```
