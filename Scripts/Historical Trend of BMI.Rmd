@@ -42,10 +42,10 @@ Historical data related to BMI were assessed by Statistics Netherlands and the N
 bmi.by.year.and.sex <- read_csv(
   file = paste0(input.data.path, "/Risk Factors/BMI by Year and Sex.csv"),
   col_types = cols(
-    year = col_integer(),
+    date = col_date(),
     sex = col_factor(levels = c("0", "1")),
-    bmi = col_factor(levels = c("[25,30)", "[30,Inf)")),
-    standardised = col_factor(),
+    bmi_lower = col_double(),
+    bmi_upper = col_double(),
     prevalence = col_double()
   )
 )
@@ -87,9 +87,12 @@ Let's start by joining the data related to the prevalences of overweight and obe
 
 ```{r}
 bmi.and.bmi.parameters.by.year.and.sex <- bmi.by.year.and.sex %>%
-  filter(standardised == 1) %>%
+  mutate(
+    year = year(date),
+    name = paste0("[", bmi_lower, ",", bmi_upper, ")")
+  ) %>%
+  select(year, sex, name, prevalence) %>%
   pivot_wider(
-    names_from = bmi,
     values_from = prevalence
   ) %>%
   left_join(
@@ -99,7 +102,7 @@ bmi.and.bmi.parameters.by.year.and.sex <- bmi.by.year.and.sex %>%
 bmi.and.bmi.parameters.by.year.and.sex
 ```
 
-We can now find the values for $\mu$ and $\sigma$ which correspond to the observed prevalences, by year and sex, keeping the $\nu$ and $\tau$ parameters fixed. Given that there are two unknowns and two data points, this calculation should give an exact result. An easy method to obtain this result is to minimise the squared difference between the observed prevalences and those implied by certain values for $\mu$ and $\sigma$.
+We can now find the values for $\mu$ and $\sigma$ which correspond to the observed prevalences, keeping the $\nu$ and $\tau$ parameters fixed. Given that, for each year and sex, there are two unknowns and two data points, this calculation should give an exact result. An easy method to obtain this result is to minimise the squared difference between the observed prevalences and those implied by certain values for $\mu$ and $\sigma$.
 
 ```{r}
 optimisation.result.by.year.and.sex <- bmi.and.bmi.parameters.by.year.and.sex %>%
@@ -154,7 +157,7 @@ ggplot(
   mapping = aes(
     x = year,
     y = value,
-    col = as.factor(sex)
+    col = factor(sex)
   ),
   data = implied.bmi.parameters.by.year.and.sex %>%
     pivot_longer(c(mu, sigma))
@@ -173,7 +176,7 @@ ggplot(
     labels = c("0" = "Male", "1" = "Female")
   ) +
   facet_wrap(
-    ~ name,
+    facets = ~ name,
     scales = "free",
     labeller = label_parsed
   )
@@ -205,7 +208,7 @@ estimated.bmi.trend.parameters.by.sex
 
 # Internal Validation
 
-A linear trend such as in [equation (1)](#eq:Population-Level-Distribution-Parameters) has limitations. For one, we are ignoring any interaction with the level of education or with age. The analysis in the document [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) indicates that this is a reasonable simplification for the level of education but that an interaction with age might be desirable. Such a more flexible model may fit the data better but the interpretation of the interaction would remain an issue. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to age from effects due to cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption that the observed age-dependency, which was analysed previously in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), is not due to cohort effects but only due to age-related effects. Consequently, the time trends analysed here are assumed to only be due to the period the participants are living in and its instantaneous influence on their lifestyle choices.
+A linear trend such as in [equation (1)](#eq:Population-Level-Distribution-Parameters) has limitations. For one, we are ignoring any interaction with the level of education or with age. The analysis in the document [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) indicates that this is a reasonable simplification for the level of education but that an interaction with age might be desirable. Such a more flexible model may fit the data better but the interpretation of the interaction would remain an issue. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to age from effects due to cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption that the observed age-dependency, which was analysed previously in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), is not due to cohort effects but only due to biological effects of age. Consequently, the time trends analysed here are assumed to only be due to the period the participants are living in and its instantaneous influence on their lifestyle choices.
 
 Another important limitation of a linear trend is that it predicts unrealistically low BMI values in the distant past and an ever increasing prevalence of overweight and obesity in the future. The ideal way to operationalise such a time effect would be to fit a sigmoidal function which asymptotically levels off to fixed values in both the distant past and the distant future. Due to limited data and our inherent ignorance of the future, however, a linear trend was fit. This entails that our model can only be valid for some time range around 2012, say, between 1980 and 2040. Let's validate this by creating a plot. We begin by determining the predicted values for $\mu$ and $\sigma$ over the period 1980 to 2040.
 
@@ -231,12 +234,12 @@ This table is used to determine the predicted prevalences of overweight and obes
 ```{r}
 estimated.bmi.by.sex.and.year <- estimated.bmi.parameters.by.sex.and.year %>%
   mutate(
-    `[25,30)` := pSHASHo2(30, mu, sigma, nu, tau) - pSHASHo2(25, mu, sigma, nu, tau),
-    `[30,Inf)` := 1 - pSHASHo2(30, mu, sigma, nu, tau)
+    `[25,30)` = pSHASHo2(30, mu, sigma, nu, tau) - pSHASHo2(25, mu, sigma, nu, tau),
+    `[30,Inf)` = 1 - pSHASHo2(30, mu, sigma, nu, tau)
   ) %>%
   select(year, sex, `[25,30)`, `[30,Inf)`) %>%
   pivot_longer(
-    c(`[25,30)`, `[30,Inf)`),
+    cols = c(`[25,30)`, `[30,Inf)`),
     names_to = "bmi",
     values_to = "prevalence"
   )
@@ -256,7 +259,10 @@ ggplot() +
       shape = bmi
     ),
     data = bmi.by.year.and.sex %>%
-      filter(standardised == 1)
+      mutate(
+        year = year(date),
+        bmi = paste0("[", bmi_lower, ",", bmi_upper, ")")
+      )
   ) +
   geom_line(
     mapping = aes(
@@ -299,7 +305,7 @@ ggplot() +
       x = x,
       y = y,
       col = sex,
-      linetype = as.factor(year)
+      linetype = factor(year)
     ),
     data = estimated.bmi.parameters.by.sex.and.year %>%
       filter(year %in% seq(1990, 2020, 10)) %>%

@@ -55,7 +55,7 @@ Let's load the Gezondheidsmonitor dataset. The survey was first conducted in Sep
 
 ```{r}
 gezondheidsmonitor.data <- read_sav(
-  file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2012/2020_03_31_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
+  file = "R:/Projecten/V010041 Monitor/DataUitgifte/Data Gezondheidsmonitor Volwassenen en Ouderen 2012/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
   col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201", "LFALA201", "LFALA202", "LFALS218", "LFRKA205", "LFRKA206", "LFRKA207")
 ) %>%
   zap_labels() %>%

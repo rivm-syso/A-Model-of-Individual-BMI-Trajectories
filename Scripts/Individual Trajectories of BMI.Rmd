@@ -78,7 +78,7 @@ historical.trend.parameters
 
 To understand individual trajectories and to distinguish between long-term, medium-term and short-term effects, we require longitudinal data with multiple measurements over a relatively long time. The Doetinchem Cohort Study provides such data. This study has followed a sex- and age stratified random sample from the population registers of the municipality of Doetinchem in the Netherlands for the past 30 years [@Verschuren2008]. Its aim is to study lifestyle factors and biological risk factors on aspects of health. The participants underwent a health examination about every 5 years since 1987. A key feature of this panel is that characteristics such as weight and height were measured by research assistants instead of being self-reported. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Doetinchem.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/Doetinchem/Clean-Doetinchem.html), where the data are also explored in more detail.
 
-In the chunk below, we have limited the output. This is because the Doetinchem dataset is not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
+Throughout the document, we will limit the output in each step. This is because the Doetinchem data are not open source. To request access to the data, please visit [www.rivm.nl/doetinchem-cohort-studie](https://www.rivm.nl/doetinchem-cohort-studie).
 
 ```{r}
 doetinchem.data <- read_csv(
@@ -101,7 +101,7 @@ vtable(doetinchem.data, out = "return", missing = TRUE)
 
 The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail.
 
-In the chunk below, we have limited the output. This is because the LISS dataset is not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+Throughout the document, we will limit the output in each step. This is because the LISS data are not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
 
 ```{r}
 liss.data <- read_csv(
@@ -122,25 +122,33 @@ liss.data <- read_csv(
 vtable(liss.data, out = "return", missing = TRUE)
 ```
 
-The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. The datasets are simply joined together before the analysis.
+The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. 
 
 # Transform BMI Values
 
-## Determine Z-Scores
-
-We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters). Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores.
+The datasets are simply joined together before the analysis. However, the LISS dataset contains values for the age of the participants which are rounded down to the nearest year. As a simple solution, half a year is added to these values.
 
 ```{r}
-longitudinal.bmi.data <- doetinchem.data %>%
+joined.longitudinal.data <- doetinchem.data %>%
   mutate(
     source = "Doetinchem"
   ) %>%
   bind_rows(
     liss.data %>%
       mutate(
-        source = "LISS"
+        source = "LISS",
+        age = age + 0.5
       )
-  ) %>%
+  )
+vtable(joined.longitudinal.data, out = "return", missing = TRUE)
+```
+
+## Determine Z-Scores
+
+We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters). Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores.
+
+```{r}
+longitudinal.bmi.data <- joined.longitudinal.data %>%
   left_join(
     population.level.distribution.parameters %>%
       pivot_longer(
@@ -153,10 +161,10 @@ longitudinal.bmi.data <- doetinchem.data %>%
   ) %>%
   left_join(
     historical.trend.parameters,
-    by = c("sex")
+    by = "sex"
   ) %>%
   mutate(
-    time = as.numeric(date - as.Date("2013-01-01")) / 365.25, # TODO: 2012-10-15 i Repo
+    time = as.numeric(date - as.Date("2012-10-15")) / 365.25,
     mu = mu.education + mu.age.1 * age + mu.age.2 * age ^ 2 + mu.year * time,
     sigma = sigma.education + sigma.age.1 * age + sigma.age.2 * age ^ 2 + sigma.year * time,
     zscore = sinh(tau * asinh((bmi - mu) / (sigma * tau)) - nu)
@@ -341,14 +349,12 @@ ggplot(
   data = correlation.between.mean.bmi.and.its.sd
 ) + 
   geom_point(
-    alpha = 0.1,
-    na.rm = TRUE
+    alpha = 0.1
   ) +
   geom_smooth(
     method = lm,
     formula = y ~ x,
-    fill = "blue",
-    na.rm = TRUE
+    fill = "blue"
   ) +
   labs(
     x = "Mean per Individual",
@@ -403,7 +409,7 @@ bmi.trajectory.parameters
 
 ## Calibrate the Variance
 
-Besides a deviation in the mean, [figure (1)](#fig:ZScore-Distribution-Parameters) showed that the variance of the z-scores was not equal to one. We have not restricted our model to produce z-scores with unit variance and the calculation below shows that our model currently has a smaller variance than required.
+Besides a deviation in the mean, [figure (1)](#fig:ZScore-Distribution-Parameters) showed that the variance of the z-scores was not equal to one. We have not restricted our model to produce z-scores with unit variance and the calculation below shows that our model currently has a larger variance than required.
 
 ```{r}
 bmi.trajectory.parameters %>%
@@ -759,8 +765,8 @@ ggplot() +
     mapping = aes(
       x = age,
       y = bmi,
-      group = as.factor(participant.id),
-      col = as.factor(participant.id)
+      group = factor(participant.id),
+      col = factor(participant.id)
     ),
     data = generated.bmi.trajectories.for.males.with.medium.education
   ) +

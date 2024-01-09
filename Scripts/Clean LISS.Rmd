@@ -1079,7 +1079,7 @@ We can visualise this in a plot.
 ggplot() +
   geom_col(
     mapping = aes(
-      x = factor(wave),
+      x = factor(waves),
       y = n,
       fill = factor(waves)
     ),
@@ -1135,7 +1135,7 @@ ggplot(
     alpha = 0.5
   ) +
   geom_parallel_sets_axes(axis.width = 0.4) +
-  scale_fill_discrete(
+  labs(
     x = "Wave",
     fill = ""
   ) +

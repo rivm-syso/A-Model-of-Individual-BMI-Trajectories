@@ -723,7 +723,7 @@ bmi.by.year.sex.and.age <- geslacht.trend.kinderen.met.overgewicht %>%
   ) %>%
   mutate(
     bmi_upper = ifelse(bmi_lower == 25, 30, Inf),
-    prevalence = prevalence / 100
+    prevalence = round(prevalence / 100, 3)
   ) %>%
   select(date, sex, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence) %>%
   arrange(date, sex, age_lower, age_upper, bmi_lower, bmi_upper, standardised, prevalence)
@@ -869,6 +869,17 @@ write_csv(
 write_csv(
   x = bmi.by.year.sex.and.age,
   file = "BMI by Year, Sex and Age.csv"
+)
+```
+
+[Placeholder for Text]
+
+```{r}
+write_csv(
+  x = bmi.by.year.sex.and.age %>%
+    filter(age_lower == 18, standardised == 1) %>%
+    select(date, sex, bmi_lower, bmi_upper, prevalence),
+  file = "../../../Input Data/Risk Factors/BMI by Year and Sex.csv"
 )
 ```
 
