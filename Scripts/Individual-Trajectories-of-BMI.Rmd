@@ -1,7 +1,7 @@
 ---
 title: "Individual Trajectories of BMI"
 author: "Laurens Bogaardt"
-date: "2023-09-21"
+date: "2024-02-15"
 output:
   html_document:
     df_print: paged
@@ -91,10 +91,7 @@ doetinchem.data <- read_csv(
     age = col_double(),
     bmi = col_double()
   )
-) %>%
-  filter(
-    !is.na(bmi) # TODO: verplaatsen naar clean script
-  )
+)
 vtable(doetinchem.data, out = "return", missing = TRUE)
 ```
 
@@ -114,10 +111,7 @@ liss.data <- read_csv(
     age = col_double(),
     bmi = col_double()
   )
-) %>%
-  filter(
-    !is.na(bmi) # TODO: verplaatsen naar clean script
-  )
+)
 vtable(liss.data, out = "return", missing = TRUE)
 ```
 
