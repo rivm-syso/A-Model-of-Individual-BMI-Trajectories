@@ -11,7 +11,7 @@
 
 <meta name="author" content="Laurens Bogaardt" />
 
-<meta name="date" content="2023-12-15" />
+<meta name="date" content="2024-02-15" />
 
 <title>Clean and Explore Gezondheidsmonitor Data</title>
 
@@ -2869,7 +2869,7 @@ border-radius: 0px;
 <h1 class="title toc-ignore">Clean and Explore Gezondheidsmonitor
 Data</h1>
 <h4 class="author">Laurens Bogaardt</h4>
-<h4 class="date">2023-12-15</h4>
+<h4 class="date">2024-02-15</h4>
 
 </div>
 
@@ -2907,7 +2907,7 @@ document, we will limit the output in each step. This is because the
 Gezondheidsmonitor data are not open source. To request access to the
 data, please visit <a href="https://www.monitorgezondheid.nl">www.monitorgezondheid.nl</a>.</p>
 <pre class="r"><code>gezondheidsmonitor.data &lt;- read_sav(
-  file = &quot;../Input-Data/Gezondheidsmonitor/2020_03_31_GM2012_Totaalbestand GGD en CBS (N=387195).sav&quot;,
+  file = &quot;../Input-Data/Gezondheidsmonitor/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav&quot;,
   col_select = c(&quot;Surveynummer&quot;, &quot;weegfactor3&quot;, &quot;geslacht&quot;, &quot;LFT0109&quot;, &quot;opleiding_def&quot;, &quot;AGGWS201&quot;)
 ) %&gt;%
   zap_labels() %&gt;%
