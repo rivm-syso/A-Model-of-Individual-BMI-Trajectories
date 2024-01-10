@@ -1072,6 +1072,17 @@ ggplot() +
 ```
 <center>Figure 14</center>
 
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Population-Level-Prevalences.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
 ## External Validation
 
 The Public Health Monitor questionnaire was repeated in 2016 and we can use these data for external validation, as a way to assess the generalisability of the model. Given that our model is stratified by sex, level of education and age, many demographic variations will already be accounted for. The historical trend in the BMI distribution, which we analyse in the documents [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html), is not accounted for in this comparison but, given the short amount of time between the two surveys, this need not be a serious issue.
