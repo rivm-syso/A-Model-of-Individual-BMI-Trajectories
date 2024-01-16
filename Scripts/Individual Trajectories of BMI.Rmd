@@ -724,10 +724,6 @@ Let's now examine some of the resulting trajectories. As mentioned above, a comm
 seed <- 997
 # set.seed(seed)
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
-  left_join(
-    population.level.distribution.parameters,
-    by = "sex"
-  ) %>%
   filter(sex == 0) %>%
   expand_grid(
     type = ordered(
@@ -753,6 +749,10 @@ generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.par
     )
   ) %>%
   ungroup() %>%
+  bind_cols(
+    population.level.distribution.parameters %>%
+      filter(sex == 0)
+  ) %>%
   mutate(
     age = 18 + time,
     mu = mu.education.2 + mu.age.1 * age + mu.age.2 * age ^ 2,
