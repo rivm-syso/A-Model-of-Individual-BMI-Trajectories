@@ -483,7 +483,7 @@ covariance.between.times <- bmi.trajectory.parameters %>%
 covariance.between.times
 ```
 
-The resulting values are also visualised in [figure (5)](#fig:Covariance-By-Time-Difference). It shows the exponentially decaying covariance which starts off at a value equal to the total variance of one. It drops down instantaneously due to the uncorrelated error. What the correct interpretation of this error is, is up for debate. Instrumental error shows up in both cross-sectional and longitudinal data and increases the population variance [@Biehl2013]. Such noise is best removed. Short-term effects with a physical interpretation, such as eating or drinking, or simply a short-lived new habit, might reasonably be considered a part of someone's BMI and of the data generating mechanism. The autoregressive part of [figure (5)](#fig:Covariance-By-Time-Difference) is determined by the time constant and by the variance of the correlated part. Finally, the figure shows the variance related to the random intercept.
+The resulting values are also visualised in [figure (5)](#fig:Covariance-By-Time-Difference). It shows the exponentially decaying covariance which starts off at a value equal to the total variance of one. It drops down instantaneously due to the uncorrelated error. What the correct interpretation of this error is, is up for debate. Instrumental error shows up in both cross-sectional and longitudinal data and increases the population variance [@Biehl2013]. Such noise is best removed. Short-term effects with a physical interpretation, such as eating or drinking, or simply a short-lived new habit, might reasonably be considered a part of someone's BMI and of the data generating mechanism. The autoregressive part of [figure (5)](#fig:Covariance-By-Time-Difference) is determined by the time constant and by the variance of the medium-term effect. Finally, the figure shows the variance related to the random intercept, i.e. the long-term effect.
 
 <a id="fig:Covariance-By-Time-Difference"/>
 ```{r}
@@ -724,6 +724,10 @@ Let's now examine some of the resulting trajectories. As mentioned above, a comm
 seed <- 997
 # set.seed(seed)
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
+  left_join(
+    population.level.distribution.parameters,
+    by = "sex"
+  ) %>%
   filter(sex == 0) %>%
   expand_grid(
     type = ordered(
@@ -749,10 +753,6 @@ generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.par
     )
   ) %>%
   ungroup() %>%
-  bind_cols(
-    population.level.distribution.parameters %>%
-      filter(sex == 0)
-  ) %>%
   mutate(
     age = 18 + time,
     mu = mu.education.2 + mu.age.1 * age + mu.age.2 * age ^ 2,
@@ -966,7 +966,11 @@ ggplot(
     x = bmi.category,
     y = next.bmi.category,
     fill = transition.probability,
-    label = ifelse(type == "Model", sprintf("%.2f", transition.probability), sprintf("%.2f-%.2f", transition.probability.025, transition.probability.975))
+    label = ifelse(
+      type == "Model",
+      sprintf("%.2f", transition.probability),
+      sprintf("%.2f-%.2f", transition.probability.025, transition.probability.975)
+    )
   ),
   data = observed.transitions %>%
     bind_rows(model.transitions)
