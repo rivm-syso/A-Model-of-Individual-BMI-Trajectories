@@ -2,7 +2,7 @@
 
 by [Laurens Bogaardt](https://orcid.org/0000-0002-7712-6627), [Anoukh van Giessen](https://orcid.org/0000-0003-4521-9500), [H. Susan J. Picavet](https://orcid.org/0000-0002-6895-165X), [Hendriek C. Boshuizen](https://orcid.org/0000-0002-3916-9095).
 
-This paper has been submitted for publication in *Mathematical Medicine and Biology*.
+This paper was published in *Mathematical Medicine and Biology*. https://doi.org/10.1093/imammb/dqad009 on 02 January 2024.
 
 ## Abstract
 
@@ -43,6 +43,6 @@ or [download a zip archive](https://github.com/rivm-syso/A-Model-of-Individual-B
 
 ## License
 
-All source code is made available under a GPL 3 license. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full license text.
+All source code is made available under a CC-BY license. You can freely use and modify the code, without warranty, so long as you provide attribution to the authors. See `LICENSE` for the full license text.
 
-The manuscript text is also open source and is currently submitted for publication in Mathematical Medicine and Biology.
+The manuscript text is also open source and is published in Mathematical Medicine and Biology.
