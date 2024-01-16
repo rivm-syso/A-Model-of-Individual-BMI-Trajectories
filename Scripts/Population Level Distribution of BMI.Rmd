@@ -45,7 +45,7 @@ The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a 
 
 The data were gathered in September, October and November of 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model. Furthermore, the data for 2016 will be reserved for external validation, described below. This leads to our choice of fitting the model on the 2012 data.
 
-In the chunk below, we have limited the output. This is because the Public Health Monitor dataset is not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+Throughout the document, we will limit the output in each step. This is because the Public Health Monitor data are not open source. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 bmi.data <- read_csv(
@@ -369,13 +369,13 @@ So far, we have estimated the population level distribution parameters by strati
 
 To get a bit more feeling for smoothly varying distributions, we will again create an animation. [Figure (7)](#fig:Smoothly-Varying-Animation) visualises how the BMI distribution depends on age. But to create this animation, we first need to fit our model to the data at least once to get expressions for the smoothly varying functions. This is done in the subsection below.
 
-The interpretation of the age-dependency is up for debate. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to their biological age from effects due to their cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption here that the observed age-dependency is not due to cohort effects but only due to biological effects.
-
-Additionally, the data may be influenced by missingness due to BMI-related mortality. The resulting distribution, then, shows a lower mean BMI, especially at older ages. By obtaining information about the link between BMI and mortality, it becomes possible to compensate for this type of missingness. An easy method is to weight each participant with the inverse of their BMI-related mortality rate before fitting the distribution. This is left for further research.
-
 ## Age
 
 We will again run through all combinations of the characteristics, starting with an analysis of the BMI distribution by age alone. Initially, we will not make any assumptions about the functional form of the age-dependency, but rather use B-splines to fit a smooth and flexible function. The number of degrees of freedom for these B-splines is somewhat arbitrarily chosen, but balances parsimony with flexibility.
+
+The interpretation of the age-dependency is up for debate. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to their biological age from effects due to their cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption here that the observed age-dependency is not due to cohort effects but only due to biological effects.
+
+Additionally, the data may be influenced by missingness due to BMI-related mortality. If a higher BMI leads to a higher mortality rate, the anticipated BMI values of the population's heaviest people will be unobserved. The resulting distribution then shows a lower mean BMI, especially at older ages. By obtaining information about the link between BMI and mortality, it becomes possible to compensate for this type of missingness. An easy method is to weight each participant with the inverse of their BMI-related mortality rate before fitting the distribution. This is left for further research.
 
 ```{r results = TRUE, message = FALSE, warning = FALSE}
 bmi.parameters.by.age <- bmi.data %>%
@@ -949,18 +949,16 @@ bmi.data <- bmi.data %>%
 vtable(bmi.data, out = "return", missing = TRUE)
 ```
 
-## Internal Validation
-
 For a fair comparison, we also need to include the survey weights when determining the predicted prevalences of the BMI categories.
 
 ```{r}
 model.bmi.by.sex.education.and.age <- bmi.data %>%
   filter(
-    year == 2012,
     age >= 20,
     age < 95
   ) %>%
   group_by(
+    year,
     sex,
     education,
     age = cut(age, seq(20, 95, 5), right = FALSE)
@@ -987,11 +985,11 @@ The observed prevalences can simply be determined by summing over all participan
 ```{r}
 observed.bmi.by.sex.education.and.age <- bmi.data %>%
   filter(
-    year == 2012,
     age >= 20,
     age < 95
   ) %>%
   group_by(
+    year,
     sex,
     education,
     age = cut(age, seq(20, 95, 5), right = FALSE),
@@ -1008,7 +1006,9 @@ observed.bmi.by.sex.education.and.age <- bmi.data %>%
 observed.bmi.by.sex.education.and.age
 ```
 
-[Figure (14)](#fig:Population-Level-Prevalences) shows the resulting prevalences, stratified by sex, level of education and age. The model's values are necessarily more smooth due to the low degree of the age polynomial in [equation (2)](#eq:Population-Level-Distribution-Parameters), but the prediction shows good correspondence with the observed data.
+## Internal Validation
+
+We first make a comparison for the 2012 data, as a way to assess the fit of the model. [Figure (14)](#fig:Population-Level-Prevalences) shows the resulting prevalences, stratified by sex, level of education and age. The model's values are necessarily more smooth due to the low degree of the age polynomial in [equation (2)](#eq:Population-Level-Distribution-Parameters), but the prediction shows good correspondence with the observed data.
 
 <a id="fig:Population-Level-Prevalences"/>
 ```{r}
@@ -1019,14 +1019,16 @@ ggplot() +
       y = age,
       fill = factor(sex, levels = c(0, 1, 2))
     ),
-    data = observed.bmi.by.sex.education.and.age
+    data = observed.bmi.by.sex.education.and.age %>%
+      filter(year == 2012)
   ) +
   geom_point(
     mapping = aes(
       x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
       y = age
     ),
-    data = model.bmi.by.sex.education.and.age,
+    data = model.bmi.by.sex.education.and.age %>%
+      filter(year == 2012),
     size = 0.8
   ) +
   scale_x_continuous(
@@ -1064,62 +1066,7 @@ ggplot() +
 
 ## External Validation
 
-The Public Health Monitor questionnaire was repeated in 2016 and we can use these data for external validation. Given that our model is stratified by sex, level of education and age, many demographic variations will already be accounted for. But the external validation will check
-
-```{r}
-model.bmi.by.sex.education.and.age.2016 <- bmi.data %>%
-  filter(
-    year == 2016,
-    age >= 20,
-    age < 95
-  ) %>%
-  group_by(
-    sex,
-    education,
-    age = cut(age, seq(20, 95, 5), right = FALSE)
-  ) %>%
-  summarise(
-    `[0,18.5)` = weighted.mean(`[0,18.5)`, weight),
-    `[18.5,25)` = weighted.mean(`[18.5,25)`, weight),
-    `[25,30)` = weighted.mean(`[25,30)`, weight),
-    `[30,Inf)` = weighted.mean(`[30,Inf)`, weight),
-    .groups = "drop"
-  ) %>%
-  ungroup() %>%
-  pivot_longer(
-    cols = c(`[0,18.5)`, `[18.5,25)`, `[25,30)`, `[30,Inf)`),
-    names_to = "bmi",
-    values_to = "prevalence",
-    names_transform = factor
-  )
-model.bmi.by.sex.education.and.age.2016
-```
-
-After the modelled prevalences, the observed prevalences can be determined.
-
-```{r}
-observed.bmi.by.sex.education.and.age.2016 <- bmi.data %>%
-  filter(
-    year == 2016,
-    age >= 20,
-    age < 95
-  ) %>%
-  group_by(
-    sex,
-    education,
-    age = cut(age, seq(20, 95, 5), right = FALSE),
-    bmi = bmi.category
-  ) %>%
-  summarise(
-    prevalence = sum(weight),
-    .groups = "drop_last"
-  ) %>%
-  mutate(
-    prevalence = prevalence / sum(prevalence)
-  ) %>%
-  ungroup()
-observed.bmi.by.sex.education.and.age.2016
-```
+The Public Health Monitor questionnaire was repeated in 2016 and we can use these data for external validation, as a way to assess the generalisability of the model. Given that our model is stratified by sex, level of education and age, many demographic variations will already be accounted for. The historical trend in the BMI distribution, which we analyse in the documents [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html), is not accounted for in this comparison but, given the short amount of time between the two surveys, this need not be a serious issue.
 
 [Figure (15)](#fig:Population-Level-Prevalences-2016) shows the resulting prevalences, stratified by sex, level of education and age. The discrepancies between the observed and modelled prevalences are larger than in [figure (14)](#fig:Population-Level-Prevalences), but the prediction shows good correspondence with the observed data.
 
@@ -1132,14 +1079,16 @@ ggplot() +
       y = age,
       fill = factor(sex, levels = c(0, 1, 2))
     ),
-    data = observed.bmi.by.sex.education.and.age.2016
+    data = observed.bmi.by.sex.education.and.age %>%
+      filter(year == 2016)
   ) +
   geom_point(
     mapping = aes(
       x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
       y = age
     ),
-    data = model.bmi.by.sex.education.and.age.2016,
+    data = model.bmi.by.sex.education.and.age %>%
+      filter(year == 2016),
     size = 0.8
   ) +
   scale_x_continuous(

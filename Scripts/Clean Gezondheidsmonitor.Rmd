@@ -500,14 +500,14 @@ ggplot() +
 Let's check, per year, what the number and percentages of males and females is.
 
 ```{r}
-gezondheidsmonitor.prevalence.sex <- gezondheidsmonitor.data %>%
+gezondheidsmonitor.prevalence.by.year.and.sex <- gezondheidsmonitor.data %>%
   count(year, sex) %>%
   group_by(year) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-gezondheidsmonitor.prevalence.sex
+gezondheidsmonitor.prevalence.by.year.and.sex
 ```
 
 We can visualise this in a plot.
@@ -520,7 +520,7 @@ ggplot() +
       y = prevalence,
       fill = sex
     ),
-    data = gezondheidsmonitor.prevalence.sex
+    data = gezondheidsmonitor.prevalence.by.year.and.sex
   ) +
   labs(
     x = "Year",
@@ -537,14 +537,14 @@ ggplot() +
 Let's check, per year, what the number and percentages of each of the three levels of education is.
 
 ```{r}
-gezondheidsmonitor.prevalence.education <- gezondheidsmonitor.data %>%
+gezondheidsmonitor.prevalence.by.year.and.education <- gezondheidsmonitor.data %>%
   count(year, education) %>%
   group_by(year) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-gezondheidsmonitor.prevalence.education
+gezondheidsmonitor.prevalence.by.year.and.education
 ```
 
 We can visualise this in a plot.
@@ -557,7 +557,7 @@ ggplot() +
       y = prevalence,
       fill = education
     ),
-    data = gezondheidsmonitor.prevalence.education
+    data = gezondheidsmonitor.prevalence.by.year.and.education
   ) +
   labs(
     x = "Year",

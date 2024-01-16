@@ -145,7 +145,7 @@ vtable(joined.longitudinal.data, out = "return", missing = TRUE)
 
 ## Determine Z-Scores
 
-We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters). Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores.
+We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) and describe the distribution of BMI of the individual's peer group. Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores and provides a measure of their BMI positions relative to their peer group.
 
 ```{r}
 longitudinal.bmi.data <- joined.longitudinal.data %>%
@@ -329,7 +329,7 @@ Our intent is to model the z-scores using a generalised autoregressive model. On
 correlation.between.mean.bmi.and.its.sd <- longitudinal.bmi.data %>%
   pivot_longer(c(bmi, zscore)) %>%
   group_by(source, participant.id, name) %>%
-  filter(n() > 1) %>% # TODO: move?
+  filter(n() > 1) %>%
   summarise(
     mean = mean(value),
     sd = sd(value),
@@ -363,7 +363,7 @@ ggplot(
   facet_wrap(
     facets = vars(source, name),
     scales = "free",
-    labeller = labeller(name = c(bmi = "BMI", zscore = "Z-score")) # TODO: BMI capital in data?
+    labeller = labeller(name = c(bmi = "BMI", zscore = "Z-score"))
   )
 ```
 <center>Figure 4</center>
@@ -372,7 +372,7 @@ ggplot(
 
 ## Estimate the Parameters
 
-One commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. This is the approach we take by modelling the trajectories using a generalised autoregressive model. [Figure (8)](#fig:Individual-Trajectories) shows a comparison between the resulting life course trajectories.
+One commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution, i.e. relative to their peer group. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. This is the approach we take by modelling the trajectories using a generalised autoregressive model. [Figure (8)](#fig:Individual-Trajectories) shows a comparison between the resulting life course trajectories.
 
 The individual trajectories are assumed to contain long-term, medium-term and short-term effects. The long-term effects are then operationalised as a random intercept, which indicates the tendency to belong to the upper- or lower percentiles of the BMI distribution. In the fixed-percentile method, shown in [figure (8)](#fig:Individual-Trajectories), this random intercept is the only effect which determines the trajectories. Our model generalises this method by including medium-term effects which are represented by an autoregressive process (AR1). This process assumes that, at each time period, a random shock occurs which either pushes the BMI z-score up or down. The effect of a shock decays exponentially over time, similar to how habits wax and wane. The overall effect is the sum of all previous shocks, which results in a meandering BMI value with temporal autocorrelation, also visualised in [figure (8)](#fig:Individual-Trajectories). Short-term effects are modelled as additional, uncorrelated error representing daily fluctuations in weight. Note that no random slope is included. Models with these three components are described in detail in [@Diggle1988; @Diggle1994] and [@Verbeke2000], and the relevant functions related to the generalised autoregressive model we use are explored in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html).
 
@@ -452,10 +452,6 @@ bmi.trajectory.parameters %>%
 ## Explore Results
 
 As mentioned in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html), an autoregressive process can be viewed in two ways. The first shows how a trajectory evolves over time, as a build-up of successive shocks which decay over time, whereas the other can be interpreted as directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories. The parameters we have seen so far align more with the first interpretation of the mechanism. But it is easy to transform the values to align with the latter view.
-
-the methods in this section can be interpreted as a way of directly sampling entire trajectories from a high-dimensional distribution of all possible trajectories.
-
-The time constant is related to $\phi_{0}$ via [equation (7)](#eq:get.time.constant) and indicates the amount of time which needs to pass before the temporal correlation has dropped to approximately $37\%$ of its original value.
 
 ```{r}
 bmi.trajectory.parameters %>%
@@ -719,7 +715,7 @@ covariance.by.time.difference.plot +
 ```
 <center>Figure 7</center>
 
-The simulation study in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (6)](#fig:Covariance-By-Time-Difference-With-Labels). In light of this, it may be concluded that the individual trajectories of males and females are quite similar.
+The simulation study in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels-And-Values). In light of this, it may be concluded that the individual trajectories of males and females are quite similar.
 
 Let's now examine some of the resulting trajectories. As mentioned above, a commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. Our approach models the fluctuation over time and we can easily generate some z-score trajectories for both approaches using the functions from the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html). These are, then, transformed to BMI trajectories, following [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
 
@@ -729,17 +725,27 @@ seed <- 997
 # set.seed(seed)
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
   filter(sex == 0) %>%
-  expand_grid(type = ordered(c("Fixed-percentile method", "Our autoregressive model"), levels = c("Fixed-percentile method", "Our autoregressive model"))) %>%
+  expand_grid(
+    type = ordered(
+      x = c("Fixed-percentile method", "Our autoregressive model"),
+      levels = c("Fixed-percentile method", "Our autoregressive model")
+    )
+  ) %>%
+  mutate(
+    sd.random.intercept = ifelse(type == "Fixed-percentile method", 1, sd.random.intercept),
+    sd.shock = ifelse(type == "Fixed-percentile method", 0, sd.shock),
+    sd.uncorrelated.error = ifelse(type == "Fixed-percentile method", 0, sd.uncorrelated.error)
+  ) %>%
   group_by(type) %>%
   group_modify(
     ~ generate.population.with.generalised.autoregressive.values(
       n.participants = 40,
       n.time.steps = 39,
       time.step.size = 2,
-      sd.random.intercept = c("Fixed-percentile method" = 1, "Our autoregressive model" = .x$sd.random.intercept)[.y$type],
+      sd.random.intercept = .x$sd.random.intercept,
       temporal.correlation = .x$temporal.correlation,
-      sd.shock = c("Fixed-percentile method" = 0, "Our autoregressive model" = .x$sd.shock)[.y$type],
-      sd.uncorrelated.error = c("Fixed-percentile method" = 0, "Our autoregressive model" = .x$sd.uncorrelated.error)[.y$type]
+      sd.shock = .x$sd.shock,
+      sd.uncorrelated.error = .x$sd.uncorrelated.error
     )
   ) %>%
   ungroup() %>%
@@ -925,7 +931,7 @@ model.transitions <- longitudinal.bmi.data %>%
 model.transitions
 ```
 
-Let's now count the observed transitions for all individuals in the longitudinal datasets. These are aggregated and the $2.5\%$ and $97.5\%$ confidence intervals are included.
+Let's now count the observed transitions for all individuals in the longitudinal datasets. These are converted to transition rates and the $2.5\%$ and $97.5\%$ confidence intervals are included.
 
 ```{r}
 observed.transitions <- longitudinal.bmi.data %>%
@@ -998,7 +1004,7 @@ ggplot(
 
 ## Standard Deviation
 
-[Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals who drastically gain- and lose weight over time. Such outlying transitions are not captured by our model. Contrarily, [figure (10)](#fig:Transition-Matrices) suggests our model slightly overestimates the amount of fluctuation which occurs for higher BMI values. It seems that the amount by which the values within the observed trajectories fluctuate differ with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [Figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by sampling several new trajectories for each individual.
+[Figure (9)](#fig:Individual-Z-Score-Trajectories) shows a few individuals who drastically gain- and lose weight over time. Such outlying transitions are not captured by our model. Contrarily, [figure (10)](#fig:Transition-Matrices) suggests our model slightly overestimates the amount of fluctuation which occurs for higher BMI values. It seems that the amount by which the values within the observed trajectories fluctuate differs with that predicted by the model. Let's examine this by looking into the standard deviation of each individual's trajectory, as previously visualised in [figure (4)](#fig:Correlation-between-Mean-BMI-and-its-SD). Given that our model simulates trajectories for a finite number of time periods, the standard deviation will differ for every sampled trajectory. The predicted distribution of this standard deviation can simply be obtained by generating several new trajectories for each individual.
 
 ```{r}
 model.standard.deviation <- longitudinal.bmi.data %>%
@@ -1024,9 +1030,9 @@ model.standard.deviation <- longitudinal.bmi.data %>%
 head(model.standard.deviation)
 ```
 
-[Figure (11)](#fig:Standard-Deviation) shows the resulting distributions of the standard deviation, which shows a discrepancy between the observation and the prediction. There are a few reasons why this comparison is not entirely fair. First, remember that we combined the Doetinchem and LISS datasets and fitted a model to the joined dataset. Additionally, we included a fixed intercept but discarded these coefficients. And, finally, we normalised our coefficients such that they produced z-scores with unit standard deviation.
+[Figure (11)](#fig:Standard-Deviation) shows the resulting distributions of the standard deviation, which shows a discrepancy between the observation and the prediction. There are a few reasons why this comparison is not entirely fair. First, remember that we combined the Doetinchem and LISS datasets and fitted a model to the joined dataset. Additionally, we included fixed intercepts but discarded these coefficients. And, finally, we normalised our coefficients such that they produced z-scores with unit standard deviation.
 
-However, this will not explain the type of discrepancy that we see in [figure (11)](#fig:Standard-Deviation). It seems the modelled variance of the standard deviation, so the amount of fluctuation in typical trajectories, is smaller than what is observed in the data. It may simply be the case that there is a part of the population who have a particularly stable BMI and another whose BMI changes more rapidly. We had assumed the model's parameters, which produce mildly fluctuating trajectories, hold true for the entire population and that the three stochastic elements form the source of individual variations. There may be additional heterogeneity which is not captured by our model. Future work could possibly extend the model using a growth mixture model where one subgroup follows fairly stable trajectories and another subgroup produces larger variations over time [@Herle2020]. Regardless, our risk factor model already captures the majority of the heterogeneity within and between individual trajectories, and certainly more than the fixed-percentile method does. Modelling these dynamics correctly can be important when the relationship between a risk factor and a disease is simulated. Many such relationships are non-linear and an individual whose BMI fluctuates wildly can experience a different cumulative risk than one who follows a stable trajectory, even when their mean is similar [@Murray2020].
+However, this will not explain the type of discrepancy that we see in [figure (11)](#fig:Standard-Deviation). It seems the modelled variance of this distribution, so the variance in the amount of fluctuation in typical trajectories, is smaller than what is observed in the data. It may simply be the case that there is a part of the population who have a particularly stable BMI and another whose BMI changes more rapidly. We had assumed the model's parameters, which produce mildly fluctuating trajectories, hold true for the entire population and that the three stochastic elements form the source of individual variations. There may be additional heterogeneity which is not captured by our model. Future work could possibly extend the model using a growth mixture model where one subgroup follows fairly stable trajectories and another subgroup produces larger variations over time [@Herle2020]. Regardless, our risk factor model already captures the majority of the heterogeneity within and between individual trajectories, and certainly more than the fixed-percentile method does. Modelling these dynamics correctly can be important when the relationship between a risk factor and a disease is simulated. Many such relationships are non-linear and an individual whose BMI fluctuates wildly can experience a different cumulative risk than one who follows a stable trajectory, even when their mean is similar [@Murray2020].
 
 <a id="fig:Standard-Deviation"/>
 ```{r}

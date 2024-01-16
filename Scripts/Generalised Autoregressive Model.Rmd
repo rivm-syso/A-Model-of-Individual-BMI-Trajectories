@@ -503,7 +503,7 @@ generate.generalised.autoregressive.values(
 
 ## generate.population.with.values.simultaneously()
 
-The function _generate.population.with.values.simultaneously_ creates a population dataset by sampling all trajectories simultaneously. It provides an alternative, and computationally faster, method to the one described in subsection [generate.population.with.generalised.autoregressive.values()].
+The function _generate.population.with.values.simultaneously_ creates a population dataset by sampling all trajectories simultaneously. It provides an alternative, and computationally faster method to the one described in subsection [generate.population.with.generalised.autoregressive.values()].
 
 ```{r}
 generate.population.with.values.simultaneously(

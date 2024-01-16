@@ -442,14 +442,14 @@ ggplot(
 Let's check, per wave, what the number and percentages of males and females is.
 
 ```{r}
-doetinchem.prevalence.sex <- doetinchem.data %>%
+doetinchem.prevalence.by.wave.and.sex <- doetinchem.data %>%
   count(wave, sex) %>%
   group_by(wave) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-doetinchem.prevalence.sex
+doetinchem.prevalence.by.wave.and.sex
 ```
 
 We can visualise this in a plot.
@@ -462,7 +462,7 @@ ggplot() +
       y = prevalence,
       fill = sex
     ),
-    data = doetinchem.prevalence.sex
+    data = doetinchem.prevalence.by.wave.and.sex
   ) +
   labs(
     x = "Wave",
@@ -479,14 +479,14 @@ ggplot() +
 Let's check, per wave, what the number and percentages of each of the three levels of education is.
 
 ```{r}
-doetinchem.prevalence.education <- doetinchem.data %>%
+doetinchem.prevalence.by.wave.and.education <- doetinchem.data %>%
   count(wave, education) %>%
   group_by(wave) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-doetinchem.prevalence.education
+doetinchem.prevalence.by.wave.and.education
 ```
 
 We can visualise this in a plot.
@@ -499,7 +499,7 @@ ggplot() +
       y = prevalence,
       fill = education
     ),
-    data = doetinchem.prevalence.education
+    data = doetinchem.prevalence.by.wave.and.education
   ) +
   labs(
     x = "Wave",

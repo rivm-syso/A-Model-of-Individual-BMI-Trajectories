@@ -35,7 +35,7 @@ library(vtable)
 
 # Load Input
 
-The LISS dataset consists of separate questionnaires about various topic. In this document, we will examine the background questionnaires and the health questionnaires.
+The LISS dataset consists of separate questionnaires about various topics. In this document, we will examine the background questionnaires and the health questionnaires.
 
 ## Background Data
 
@@ -1151,14 +1151,14 @@ ggplot(
 Let's check, per wave, what the number and percentages of males and females is.
 
 ```{r}
-liss.prevalence.sex <- liss.data %>%
+liss.prevalence.by.wave.and.sex <- liss.data %>%
   count(wave, sex) %>%
   group_by(wave) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-liss.prevalence.sex
+liss.prevalence.by.wave.and.sex
 ```
 
 We can visualise this in a plot.
@@ -1171,7 +1171,7 @@ ggplot() +
       y = prevalence,
       fill = sex
     ),
-    data = liss.prevalence.sex
+    data = liss.prevalence.by.wave.and.sex
   ) +
   labs(
     x = "Wave",
@@ -1188,14 +1188,14 @@ ggplot() +
 Let's check, per wave, what the number and percentages of each of the three levels of education is.
 
 ```{r}
-liss.prevalence.education <- liss.data %>%
+liss.prevalence.by.wave.and.education <- liss.data %>%
   count(wave, education) %>%
   group_by(wave) %>%
   mutate(
     prevalence = n / sum(n)
   ) %>%
   ungroup()
-liss.prevalence.education
+liss.prevalence.by.wave.and.education
 ```
 
 We can visualise this in a plot.
@@ -1208,7 +1208,7 @@ ggplot() +
       y = prevalence,
       fill = education
     ),
-    data = liss.prevalence.education
+    data = liss.prevalence.by.wave.and.education
   ) +
   labs(
     x = "Wave",
