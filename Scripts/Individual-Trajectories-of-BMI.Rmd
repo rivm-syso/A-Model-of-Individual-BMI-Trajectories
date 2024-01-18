@@ -51,7 +51,7 @@ In the analysis below, we will make use of the population level distribution par
 population.level.distribution.parameters <- read_csv(
   file = "../Output-Data/Population-Level-Distribution-of-BMI.csv",
   col_type = cols(
-    sex = col_factor(levels = c("0", "1")),
+    sex = col_factor(levels = c("M", "F")),
     .default = col_double()
   )
 )
@@ -66,7 +66,7 @@ We will also make use of the historical trend parameters which were previously e
 historical.trend.parameters <- read_csv(
   file = "../Output-Data/Historical-Trend-of-BMI.csv",
   col_type = cols(
-    sex = col_factor(levels = c("0", "1")),
+    sex = col_factor(levels = c("M", "F")),
     .default = col_double()
   )
 )
@@ -84,8 +84,8 @@ doetinchem.data <- read_csv(
   file = "../Output-Data/Doetinchem.csv",
   col_type = cols_only(
     participant.id = col_character(),
-    sex = col_factor(levels = c("0", "1")),
-    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
+    sex = col_factor(levels = c("M", "F")),
+    education = col_factor(levels = c("L", "M", "H"), ordered = TRUE),
     wave = col_integer(),
     date = col_date(),
     age = col_double(),
@@ -104,8 +104,8 @@ liss.data <- read_csv(
   file = "../Output-Data/LISS.csv",
   col_type = cols_only(
     participant.id = col_character(),
-    sex = col_factor(levels = c("0", "1")),
-    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
+    sex = col_factor(levels = c("M", "F")),
+    education = col_factor(levels = c("L", "M", "H"), ordered = TRUE),
     wave = col_integer(),
     date = col_date(),
     age = col_double(),
@@ -138,9 +138,9 @@ longitudinal.bmi.data <- doetinchem.data %>%
       pivot_longer(
         cols = contains("education"),
         names_to = c(".value", "education"),
-        names_pattern = "(.*)\\.(.)",
-        names_transform = list(education = as.ordered)
-      ),
+        names_pattern = "(.*)\\.(.)"
+      ) %>%
+      mutate(education = factor(education, levels = c("L", "M", "H"), ordered = TRUE)),
     by = c("sex", "education")
   ) %>%
   left_join(
@@ -230,7 +230,7 @@ ggplot() +
   ) +
   scale_colour_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   facet_wrap(~ source)
 ```
@@ -262,11 +262,11 @@ ggplot(
   ) +
   scale_colour_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   ) +
   facet_wrap(
     facets = vars(sex),
-    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
   )
 ```
 <center>Figure 2</center>
@@ -302,7 +302,7 @@ ggplot(
   ) +
   facet_wrap(
     facets = vars(sex),
-    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
   )
 ```
 <center>Figure 3</center>
@@ -509,7 +509,7 @@ covariance.by.time.difference.plot <- ggplot(
   ) +
   scale_colour_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   )
 covariance.by.time.difference.plot
 ```
@@ -522,9 +522,9 @@ It can be helpful to visualise the covariance structure together with the associ
 covariance.by.time.difference.plot +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 41, `1` = 45)[sex],
+      x = c("M" = 41, "F" = 45)[sex],
       y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
-      xend = c(`0` = 41, `1` = 45)[sex],
+      xend = c("M" = 41, "F" = 45)[sex],
       yend = 1,
       col = sex
     ),
@@ -543,9 +543,9 @@ covariance.by.time.difference.plot +
   ) +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 41, `1` = 45)[sex],
+      x = c("M" = 41, "F" = 45)[sex],
       y = sd.random.intercept ^ 2 + 0.01,
-      xend = c(`0` = 41, `1` = 45)[sex],
+      xend = c("M" = 41, "F" = 45)[sex],
       yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0) - 0.01,
       col = sex
     ),
@@ -564,9 +564,9 @@ covariance.by.time.difference.plot +
   ) +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 41, `1` = 45)[sex],
+      x = c("M" = 41, "F" = 45)[sex],
       y = 0.01,
-      xend = c(`0` = 41, `1` = 45)[sex],
+      xend = c("M" = 41, "F" = 45)[sex],
       yend = sd.random.intercept ^ 2 - 0.01,
       col = sex
     ),
@@ -625,9 +625,9 @@ Additionally, we can add the values of the coefficients to [figure (5)](#fig:Cov
 covariance.by.time.difference.plot +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 5, `1` = 15)[sex],
+      x = c("M" = 5, "F" = 15)[sex],
       y = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
-      xend = c(`0` = 5, `1` = 15)[sex],
+      xend = c("M" = 5, "F" = 15)[sex],
       yend = 1,
       col = sex
     ),
@@ -636,7 +636,7 @@ covariance.by.time.difference.plot +
   ) +
   geom_label(
     mapping = aes(
-      x = c(`0` = 10, `1` = 20)[sex],
+      x = c("M" = 10, "F" = 20)[sex],
       y = 0.96,
       label = sprintf("sigma [epsilon] ^ 2 == '%.2f'", sd.uncorrelated.error ^ 2)
     ),
@@ -646,9 +646,9 @@ covariance.by.time.difference.plot +
   ) +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 40, `1` = 45)[sex],
+      x = c("M" = 40, "F" = 45)[sex],
       y = sd.random.intercept ^ 2,
-      xend = c(`0` = 40, `1` = 45)[sex],
+      xend = c("M" = 40, "F" = 45)[sex],
       yend = get.total.variance(sd.random.intercept, temporal.correlation, sd.shock, 0),
       col = sex
     ),
@@ -657,7 +657,7 @@ covariance.by.time.difference.plot +
   ) +
   geom_label(
     mapping = aes(
-      x = c(`0` = 40, `1` = 45)[sex],
+      x = c("M" = 40, "F" = 45)[sex],
       y = sd.random.intercept ^ 2 + get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2 / 2,
       label = sprintf("sigma [AR1] ^ 2 == '%.2f'", get.sd.correlated.error(temporal.correlation, sd.shock) ^ 2)
     ),
@@ -667,9 +667,9 @@ covariance.by.time.difference.plot +
   ) +
   geom_segment(
     mapping = aes(
-      x = c(`0` = 20, `1` = 25)[sex],
+      x = c("M" = 20, "F" = 25)[sex],
       y = 0,
-      xend = c(`0` = 20, `1` = 25)[sex],
+      xend = c("M" = 20, "F" = 25)[sex],
       yend = sd.random.intercept ^ 2,
       col = sex
     ),
@@ -678,7 +678,7 @@ covariance.by.time.difference.plot +
   ) +
   geom_label(
     mapping = aes(
-      x = c(`0` = 20, `1` = 25)[sex],
+      x = c("M" = 20, "F" = 25)[sex],
       y = sd.random.intercept ^ 2 / 2,
       label = sprintf("sigma [RI] ^ 2 == '%.2f'", sd.random.intercept ^ 2)
     ),
@@ -716,7 +716,7 @@ Let's now examine some of the resulting trajectories. As mentioned above, a comm
 
 ```{r}
 generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.parameters %>%
-  filter(sex == 0) %>%
+  filter(sex == "M") %>%
   expand_grid(
     type = ordered(
       x = c("Fixed-percentile method", "Our autoregressive model"),
@@ -743,12 +743,12 @@ generated.bmi.trajectories.for.males.with.medium.education <- bmi.trajectory.par
   ungroup() %>%
   bind_cols(
     population.level.distribution.parameters %>%
-      filter(sex == 0)
+      filter(sex == "M")
   ) %>%
   mutate(
     age = 18 + time,
-    mu = mu.education.2 + mu.age.1 * age + mu.age.2 * age ^ 2,
-    sigma = sigma.education.2 + sigma.age.1 * age + sigma.age.2 * age ^ 2,
+    mu = mu.education.M + mu.age.1 * age + mu.age.2 * age ^ 2,
+    sigma = sigma.education.M + sigma.age.1 * age + sigma.age.2 * age ^ 2,
     bmi = mu + (tau * sigma) * sinh((asinh(value) + nu) / tau)
   )
 head(generated.bmi.trajectories.for.males.with.medium.education)

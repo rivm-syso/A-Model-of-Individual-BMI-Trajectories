@@ -84,12 +84,18 @@ doetinchem.data %>%
 
 ## Sex
 
-Let's rename the column indicating the sex of the participant from _gesl_ to _sex_ and recode the variable. A _0_ will encode males, whereas females are encoded by a _1_.
+Let's rename the column indicating the sex of the participant from _gesl_ to _sex_ and recode the variable. A _M_ will encode males, whereas females are encoded by a _F_.
 
 ```{r}
 doetinchem.data <- doetinchem.data %>%
   rename(sex = gesl) %>%
-  mutate(sex = factor(sex - 1))
+  mutate(
+    sex = recode_factor(
+      sex,
+      "1" = "M",
+      "2" = "F"
+    )
+  )
 ```
 
 We also verify that there are only two sexes and immediately check whether there are any missing values.
@@ -159,12 +165,20 @@ doetinchem.data %>%
 
 ## Education
 
-Let's rename the column indicating the level of education of the participant from _ses3_ to _education_ and recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
+Let's rename the column indicating the level of education of the participant from _ses3_ to _education_ and recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _L_, applies to people with intermediate secondary education or less, the medium level, encoded by _M_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _H_, includes higher vocational education and university.
 
 ```{r}
 doetinchem.data <- doetinchem.data %>%
   rename(education = ses3) %>%
-  mutate(education = factor(education, levels = c(1, 2, 3), ordered = TRUE))
+  mutate(
+    education = recode_factor(
+      education,
+      "1" = "L",
+      "2" = "M",
+      "3" = "H",
+      .ordered = TRUE
+    )
+  )
 ```
 
 Let's now check whether any participant is missing all entries for their level of education.
@@ -470,7 +484,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Sex",
-    label = c("0" = "Male", "1" = "Female")
+    label = c("M" = "Male", "F" = "Female")
   )
 ```
 
@@ -507,7 +521,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   )
 ```
 

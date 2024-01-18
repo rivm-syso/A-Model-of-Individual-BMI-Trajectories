@@ -118,11 +118,17 @@ gezondheidsmonitor.data %>%
   count(sex)
 ```
 
-Let's recode the variable. A _0_ will encode males, whereas females are encoded by a _1_.
+Let's recode the variable. A _M_ will encode males, whereas females are encoded by a _F_.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
-  mutate(sex = factor(sex - 1))
+  mutate(
+    sex = recode_factor(
+      sex,
+      "1" = "M",
+      "2" = "F"
+    )
+  )
 ```
 
 ## Education
@@ -141,13 +147,19 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   filter(!is.na(education))
 ```
 
-Let's now recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
+Let's now recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _L_, applies to people with intermediate secondary education or less, the medium level, encoded by _M_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _H_, includes higher vocational education and university.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   mutate(
-    education = ifelse(education == 1, education, education - 1),
-    education = factor(education, levels = c(1, 2, 3), ordered = TRUE)
+    education = recode_factor(
+      education,
+      "1" = "L",
+      "2" = "L",
+      "3" = "M",
+      "4" = "H",
+      .ordered = TRUE
+    )
   )
 ```
 
@@ -275,7 +287,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Sex",
-    label = c("0" = "Male", "1" = "Female")
+    label = c("M" = "Male", "F" = "Female")
   )
 ```
 
@@ -312,7 +324,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   )
 ```
 

@@ -183,11 +183,17 @@ background.data %>%
   count(sex)
 ```
 
-For our purpose, we want males encoded as a _0_ and females as a _1_. Let's change this.
+For our purpose, we want males encoded as a _M_ and females as a _F_. Let's change this.
 
 ```{r}
 background.data <- background.data %>%
-  mutate(sex = factor(sex - 1, levels = c(0, 1)))
+  mutate(
+    sex = recode_factor(
+      sex,
+      "1" = "M",
+      "2" = "F"
+    )
+  )
 ```
 
 Each participant should only have one value for _sex_ across all waves. Let's count how many times this goes wrong.
@@ -271,11 +277,22 @@ background.data <- background.data %>%
   ungroup()
 ```
 
-The LISS dataset measures education using six categories, while we are only interested in a three level scoring, so let's recode the variable. Education will then be measured as the highest level reached where the lowest level, encoded by _1_, applies to people with intermediate secondary education or less, the medium level, encoded by _2_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _3_, includes higher vocational education and university.
+The LISS dataset measures education using six categories, while we are only interested in a three level scoring, so let's recode the variable. Education will then be measured as the highest level reached where the lowest level, encoded by _L_, applies to people with intermediate secondary education or less, the medium level, encoded by _M_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _H_, includes higher vocational education and university.
 
 ```{r}
 background.data <- background.data %>%
-  mutate(education = factor(ceiling(education / 2), levels = c(1, 2, 3), ordered = TRUE))
+  mutate(
+    education = recode_factor(
+      education,
+      "1" = "L",
+      "2" = "L",
+      "3" = "M",
+      "4" = "M",
+      "5" = "H",
+      "6" = "H",
+      .ordered = TRUE
+    )
+  )
 ```
 
 ## Year of Birth
@@ -898,7 +915,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Sex",
-    label = c("0" = "Male", "1" = "Female")
+    label = c("M" = "Male", "F" = "Female")
   )
 ```
 
@@ -935,7 +952,7 @@ ggplot() +
   ) +
   scale_fill_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   )
 ```
 

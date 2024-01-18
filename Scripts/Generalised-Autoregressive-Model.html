@@ -2973,7 +2973,7 @@ that each subsequent value is first pulled back to the centre, given
 that <span class="math inline">\(0 &lt; \phi(\Delta t) &lt; 1\)</span>.
 Secondly, a shock <span class="math inline">\(\epsilon_{shock}\)</span>
 occurs which pushes the value in a random direction, uncorrelated to any
-previous value. The effect of a a single shock decays exponentially over
+previous value. The effect of a single shock decays exponentially over
 time while the overall effect is the sum of all previous shocks,
 resulting in a meandering time series with temporal autocorrelation,
 visualised in <a href="#fig:generate.population.with.generalised.autoregressive.values">figure
@@ -3026,9 +3026,9 @@ Figure 1
 distribution with a standard deviation given by <a href="#eq:get.sd.correlated.error">equation (4)</a>. This standard
 deviation can also be obtained by setting an infinite time difference in
 <a href="#eq:sd.shock.given.time.difference">equation (2)</a>. When the
-previous value of an autoregressive process is unknown, the subsequent
-value follows a normal distribution with a standard deviation equal to
-<span class="math inline">\(\sigma_{AR1}\)</span>.</p>
+previous value of an autoregressive process is unknown, and one cannot
+condition on it, the subsequent value follows a normal distribution with
+a standard deviation equal to <span class="math inline">\(\sigma_{AR1}\)</span>.</p>
 <p><a id="eq:get.sd.correlated.error"></a> <span class="math display">\[\begin{equation}
 \tag{4}
 \sigma_{AR1} = \sigma_{0} \times \sqrt{\frac{1}{1 - \phi_0 ^ 2}} =
@@ -3791,8 +3791,8 @@ of a single mechanism, as depicted in <a href="#fig:get.covariance.given.time.di
 Figure 7
 </center>
 </div>
-<div id="references" class="section level1 unnumbered">
-<h1 class="unnumbered">References</h1>
+<div id="references" class="section level1">
+<h1>References</h1>
 <div id="refs" class="references csl-bib-body hanging-indent">
 <div id="ref-mnormt2022" class="csl-entry">
 Azzalini, Adelchi, and Alan Genz. 2022. <em>The <span>R</span> Package

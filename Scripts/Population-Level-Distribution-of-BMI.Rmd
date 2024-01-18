@@ -51,9 +51,9 @@ bmi.data <- read_csv(
   file = "../Output-Data/Gezondheidsmonitor.csv",
   col_types = cols_only(
     year = col_integer(),
-    sex = col_factor(levels = c("0", "1")),
-    education = col_factor(levels = c("1", "2", "3"), ordered = TRUE),
-    age = col_integer(),
+    sex = col_factor(levels = c("M", "F")),
+    education = col_factor(levels = c("L", "M", "H"), ordered = TRUE),
+    age = col_double(),
     weight = col_double(),
     bmi = col_double()
   )
@@ -240,7 +240,7 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   labs(
     x = "BMI",
@@ -293,7 +293,7 @@ ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   ) +
   labs(
     x = "BMI",
@@ -347,11 +347,11 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   ) +
   labs(
     x = "BMI",
@@ -602,7 +602,7 @@ ggplot() +
   ) +
   facet_wrap(
     facets = ~ sex,
-    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
   )
 ```
 <center>Figure 8</center>
@@ -675,7 +675,7 @@ ggplot() +
   ) +
   facet_wrap(
     facets = ~ education,
-    labeller = labeller(education = c("1" = "Low education", "2" = "Medium education", "3" = "High education"))
+    labeller = labeller(education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"))
   )
 ```
 <center>Figure 9</center>
@@ -745,7 +745,7 @@ ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   ) +
   scale_colour_discrete(
     name = "Parameter",
@@ -753,7 +753,7 @@ ggplot() +
   ) +
   facet_wrap(
     facets = ~ sex,
-    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
   )
 ```
 <center>Figure 10</center>
@@ -800,7 +800,7 @@ bmi.parametric.coefficients <- bmi.data %>%
       coefAll() %>%
       unlist() %>%
       as_tibble_row() %>%
-      setNames(c("mu.education.1", "mu.education.2", "mu.education.3", "mu.age.1", "mu.age.2", "sigma.education.1", "sigma.education.2", "sigma.education.3", "sigma.age.1", "sigma.age.2", "nu", "tau"))
+      setNames(c("mu.education.L", "mu.education.M", "mu.education.H", "mu.age.1", "mu.age.2", "sigma.education.L", "sigma.education.M", "sigma.education.H", "sigma.age.1", "sigma.age.2", "nu", "tau"))
   ) %>%
   ungroup()
 bmi.parametric.coefficients
@@ -813,9 +813,9 @@ bmi.parametric.parameters <- bmi.parametric.coefficients %>%
   pivot_longer(
     cols = contains("education"),
     names_to = c(".value", "education"),
-    names_pattern = "(.*.education).(.)",
-    names_transform = list(education = as.ordered)
+    names_pattern = "(.*.education).(.)"
   ) %>%
+  mutate(education = factor(education, levels = c("L", "M", "H"), ordered = TRUE)) %>%
   expand_grid(age = seq(20, 95)) %>%
   mutate(
     mu = mu.education + mu.age.1 * age + mu.age.2 * age * age,
@@ -852,7 +852,7 @@ bmi.parametric.plot <- ggplot() +
   ) +
   scale_linetype_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   ) +
   scale_colour_discrete(
     name = "Parameter",
@@ -860,7 +860,7 @@ bmi.parametric.plot <- ggplot() +
   ) +
   facet_wrap(
     facets = ~ sex,
-    labeller = labeller(sex = c("0" = "Male", "1" = "Female"))
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
   )
 bmi.parametric.plot
 ```
@@ -921,7 +921,7 @@ bmi.parametric.plot +
   ) +
   scale_shape_discrete(
     name = "Level of education",
-    labels = c("1" = "Low", "2" = "Medium", "3" = "High")
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
   )
 ```
 <center>Figure 13</center>
@@ -939,9 +939,9 @@ bmi.data <- bmi.data %>%
       pivot_longer(
         cols = contains("education"),
         names_to = c(".value", "education"),
-        names_pattern = "(.*.education).(.)",
-        names_transform = list(education = as.ordered)
-      ),
+        names_pattern = "(.*.education).(.)"
+      ) %>%
+      mutate(education = factor(education, levels = c("L", "M", "H"), ordered = TRUE)),
     by = c("sex", "education")
   ) %>%
   mutate(
@@ -1023,16 +1023,16 @@ We first make a comparison for the 2012 data, as a way to assess the fit of the 
 ggplot() +
   geom_col(
     mapping = aes(
-      x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
       y = age,
-      fill = factor(sex, levels = c(0, 1, 2))
+      fill = factor(sex, levels = c("M", "F", "U"))
     ),
     data = observed.bmi.by.sex.education.and.age %>%
       filter(year == 2012)
   ) +
   geom_point(
     mapping = aes(
-      x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
       y = age
     ),
     data = model.bmi.by.sex.education.and.age %>%
@@ -1062,7 +1062,7 @@ ggplot() +
     rows = vars(education),
     col = vars(bmi),
     labeller = labeller(
-      education = c("1" = "Low education", "2" = "Medium education", "3" = "High education"),
+      education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"),
       bmi = as_labeller(
         x = c("[0,18.5)" = "BMI < 18.5", "[18.5,25)" = "18.5 <= {BMI < 25}", "[25,30)" = "25 <= {BMI < 30}", "[30,Inf)" = "30 <= BMI"),
         default = label_parsed
@@ -1094,16 +1094,16 @@ The Public Health Monitor questionnaire was repeated in 2016 and we can use thes
 ggplot() +
   geom_col(
     mapping = aes(
-      x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
       y = age,
-      fill = factor(sex, levels = c(0, 1, 2))
+      fill = factor(sex, levels = c("M", "F", "U"))
     ),
     data = observed.bmi.by.sex.education.and.age %>%
       filter(year == 2016)
   ) +
   geom_point(
     mapping = aes(
-      x = ifelse(sex == 0, -100 * prevalence, 100 * prevalence),
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
       y = age
     ),
     data = model.bmi.by.sex.education.and.age %>%
@@ -1133,7 +1133,7 @@ ggplot() +
     rows = vars(education),
     col = vars(bmi),
     labeller = labeller(
-      education = c("1" = "Low education", "2" = "Medium education", "3" = "High education"),
+      education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"),
       bmi = as_labeller(
         x = c("[0,18.5)" = "BMI < 18.5", "[18.5,25)" = "18.5 <= {BMI < 25}", "[25,30)" = "25 <= {BMI < 30}", "[30,Inf)" = "30 <= BMI"),
         default = label_parsed

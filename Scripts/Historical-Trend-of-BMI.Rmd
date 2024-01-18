@@ -42,7 +42,7 @@ bmi.by.year.and.sex <- read_csv(
   file = "../Output-Data/VZinfo.csv",
   col_types = cols(
     year = col_integer(),
-    sex = col_factor(levels = c("0", "1")),
+    sex = col_factor(levels = c("M", "F")),
     bmi = col_factor(levels = c("[25,30)", "[30,Inf)")),
     prevalence = col_double()
   )
@@ -56,7 +56,7 @@ In the analysis below, we will also need the $\nu$ and $\tau$ parameters which w
 bmi.parameters.by.sex <- read_csv(
   file = "../Output-Data/Population-Level-Distribution-of-BMI.csv",
   col_types = cols_only(
-    sex = col_factor(levels = c("0", "1")),
+    sex = col_factor(levels = c("M", "F")),
     nu = col_double(),
     tau = col_double()
   )
@@ -167,7 +167,7 @@ ggplot(
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   facet_wrap(
     facets = ~ name,
@@ -269,7 +269,7 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   scale_shape_discrete(
     name = "Observed",
@@ -317,7 +317,7 @@ ggplot() +
   ) +
   scale_color_discrete(
     name = "Sex",
-    labels = c("0" = "Male", "1" = "Female")
+    labels = c("M" = "Male", "F" = "Female")
   ) +
   labs(
     x = "BMI",

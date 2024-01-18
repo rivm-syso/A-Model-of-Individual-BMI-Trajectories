@@ -64,7 +64,7 @@ prevalence.of.obesity.by.year.and.sex
 
 # Clean Data
 
-We clean the data by first pivoting the datasets such that we obtain one column with the prevalences and a new column indicating whether this applies to males, encoded as a _0_, or females, encoded as a _1_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
+We clean the data by first pivoting the datasets such that we obtain one column with the prevalences and a new column indicating whether this applies to males, encoded as a _M_, or females, encoded as a _F_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
 
 ```{r}
 bmi.by.year.and.sex <- prevalence.of.overweight.by.year.and.sex %>%
@@ -87,8 +87,8 @@ bmi.by.year.and.sex <- prevalence.of.overweight.by.year.and.sex %>%
   mutate(
     sex = recode_factor(
       sex,
-      "mannen" = 0,
-      "vrouwen" = 1
+      "mannen" = "M",
+      "vrouwen" = "F"
     ),
     year = Category,
     `prevalence_[25,30)` = round((`prevalence_[25,Inf)` - `prevalence_[30,Inf)`) / 100, 3),
