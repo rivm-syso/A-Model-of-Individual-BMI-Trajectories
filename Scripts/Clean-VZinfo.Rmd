@@ -32,7 +32,7 @@ library(tidyverse)
 
 # Load Input
 
-The historical BMI data of VZinfo come in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of overweight ($25 - 30 kg/m^2$) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
+The historical BMI data of VZinfo come in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of total overweight (values of $25 kg/m^2$ and above) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
 
 ```{r}
 prevalence.of.overweight.by.year.and.sex <- read_delim(

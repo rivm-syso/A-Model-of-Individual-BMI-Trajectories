@@ -493,7 +493,7 @@ liss.data <- liss.data %>%
   )
 ```
 
-## Clean Age
+## Clean Minors
 
 Now that the background data have been combined with the health data, we can filter out specific rows from the data applying to minors.
 
