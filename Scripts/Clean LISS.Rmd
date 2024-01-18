@@ -165,7 +165,7 @@ vtable(health.data, out = "return", missing = TRUE)
 
 # Clean Background Data
 
-In this section, we will examine a few aspects of the background dataset. We will find that it contains some missing data and some data which is unusual. Before we fix these issues, let's first filter the data on the participants we actually care about, namely those who also filled in the health questionnaires. This automatically ensures that the variable _participant.id_ cannot be missing.
+In this section, we will examine a few aspects of the background dataset. We will find that it contains some missing data and some data which are unusual. Before we fix these issues, let's first filter the data on the participants we actually care about, namely those who also filled in the health questionnaires. This automatically ensures that the variable _participant.id_ cannot be missing.
 
 ```{r}
 background.data <- background.data %>%
@@ -178,7 +178,7 @@ background.data <- background.data %>%
 vtable(background.data, out = "return", missing = TRUE)
 ```
 
-Let's check if the background data covers everyone who filled in the health questionnaire.
+Let's check if the background data cover everyone who filled in the health questionnaire.
 
 ```{r}
 health.data %>%
@@ -376,6 +376,15 @@ background.data <- background.data %>%
   ) %>%
   ungroup() %>%
   select(-year.of.birth)
+```
+
+The dataset contains values for the age of the participants which are rounded down to the nearest year. As a simple solution, half a year is added to these values.
+
+```{r}
+background.data <- background.data %>%
+  mutate(
+    age = age + 0.5
+  )
 ```
 
 # Combine with Health Data

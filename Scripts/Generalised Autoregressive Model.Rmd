@@ -77,7 +77,7 @@ get.sd.shock.given.time.difference(
 
 ## generate.next.value()
 
-In an autoregressive process, two successive values $x_{t}$ and $x_{t + \Delta t}$ are related to each other via [equation (3)](#eq:generate.next.value). This shows that each subsequent value is first pulled back to the centre, given that $0 < \phi(\Delta t) < 1$. Secondly, a shock $\epsilon_{shock}$ occurs which pushes the value in a random direction, uncorrelated to any previous value. The effect of a a single shock decays exponentially over time while the overall effect is the sum of all previous shocks, resulting in a meandering time series with temporal autocorrelation, visualised in [figure (2)](#fig:generate.population.with.generalised.autoregressive.values). In a first-order autoregressive process, each subsequent value only depends on the previous value, making it a Markov process which describes the step-by-step evolution of a continuous variable.
+In an autoregressive process, two successive values $x_{t}$ and $x_{t + \Delta t}$ are related to each other via [equation (3)](#eq:generate.next.value). This shows that each subsequent value is first pulled back to the centre, given that $0 < \phi(\Delta t) < 1$. Secondly, a shock $\epsilon_{shock}$ occurs which pushes the value in a random direction, uncorrelated to any previous value. The effect of a single shock decays exponentially over time while the overall effect is the sum of all previous shocks, resulting in a meandering time series with temporal autocorrelation, visualised in [figure (2)](#fig:generate.population.with.generalised.autoregressive.values). In a first-order autoregressive process, each subsequent value only depends on the previous value, making it a Markov process which describes the step-by-step evolution of a continuous variable.
 
 <a id="eq:generate.next.value"/>
 \begin{equation}
@@ -118,7 +118,7 @@ ggplot() +
 
 ## get.sd.correlated.error()
 
-An infinitely long trajectory contains values following a normal distribution with a standard deviation given by [equation (4)](#eq:get.sd.correlated.error). This standard deviation can also be obtained by setting an infinite time difference in [equation (2)](#eq:sd.shock.given.time.difference). When the previous value of an autoregressive process is unknown, the subsequent value follows a normal distribution with a standard deviation equal to $\sigma_{AR1}$.
+An infinitely long trajectory contains values following a normal distribution with a standard deviation given by [equation (4)](#eq:get.sd.correlated.error). This standard deviation can also be obtained by setting an infinite time difference in [equation (2)](#eq:sd.shock.given.time.difference). When the previous value of an autoregressive process is unknown, and one cannot condition on it, the subsequent value follows a normal distribution with a standard deviation equal to $\sigma_{AR1}$.
 
 <a id="eq:get.sd.correlated.error"/>
 \begin{equation}
@@ -759,3 +759,5 @@ ggplot(
 <center>Figure 7</center>
 
 # References
+
+<div id="refs"></div>

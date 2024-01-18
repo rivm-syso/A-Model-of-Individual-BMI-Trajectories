@@ -59,8 +59,7 @@ bmi.data <- read_csv(
     bmi = col_double()
   )
 ) %>%
-  filter(!is.na(bmi)) %>%
-  mutate(age = age + 0.5)
+  filter(!is.na(bmi))
 vtable(bmi.data, out = "return", missing = TRUE)
 ```
 

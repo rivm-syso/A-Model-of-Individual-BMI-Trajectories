@@ -99,9 +99,9 @@ doetinchem.data <- read_csv(
 vtable(doetinchem.data, out = "return", missing = TRUE)
 ```
 
-The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail.
+The Doetinchem dataset is not completely representative of the Netherlands. For example, it lacks representation of ethnic subgroups and the study was not able to sample new cohorts from younger age categories [@Picavet2017]. So, in addition to the Doetinchem data, we also make use of the Longitudinal Internet studies for the Social Sciences (LISS) panel [@Scherpenzeel2010]. The LISS panel is a representative sample of Dutch individuals who participate in monthly Internet surveys. The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. The datasets are simply joined together before the analysis.
 
-Throughout the document, we will limit the output in each step. This is because the LISS data are not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+The dataset loaded here is a cleaned version, which was processed in the document [_Clean-LISS.html_](/R:/Projecten/V02001214 KV2.1.B CZmodellering/3. Uitvoering/3. Data Voorbewerkt/LISS/Clean-LISS.html), where the data are also explored in more detail. Throughout the document, we will limit the output in each step. This is because the LISS data are not open source. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
 
 ```{r}
 liss.data <- read_csv(
@@ -122,33 +122,24 @@ liss.data <- read_csv(
 vtable(liss.data, out = "return", missing = TRUE)
 ```
 
-The LISS data were collected between 2007 and 2021, so they do not stretch over as long a period as the Doetinchem data. The dataset also includes self-reported rather than measured values. On the other hand, it does contain a large group of young adults and is sampled with shorter time intervals, meaning both datasets complement each other well. 
-
 # Transform BMI Values
 
-The datasets are simply joined together before the analysis. However, the LISS dataset contains values for the age of the participants which are rounded down to the nearest year. As a simple solution, half a year is added to these values.
-
-```{r}
-joined.longitudinal.data <- doetinchem.data %>%
-  mutate(
-    source = "Doetinchem"
-  ) %>%
-  bind_rows(
-    liss.data %>%
-      mutate(
-        source = "LISS",
-        age = age + 0.5
-      )
-  )
-vtable(joined.longitudinal.data, out = "return", missing = TRUE)
-```
 
 ## Determine Z-Scores
 
 We model an individual's trajectory as a sequence of z-scores which indicate the positions relative to the population level distribution. Following our analysis in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), we have a description of the BMI distribution using the sinh-arcsinh transformation of [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) and the four parameters $\mu$, $\sigma$, $\nu$ and $\tau$. These parameters depend on the individual's sex, level of education, age and calendar time, following [equation (1)](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) from the document [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html#eq:Population-Level-Distribution-Parameters) and describe the distribution of BMI of the individual's peer group. Consequently, all BMI measurements from the longitudinal studies can be transformed using the specific parameters associated with the individuals' characteristics and with the dates of the measurements. This should remove any dependency on these variables from the z-scores and provides a measure of their BMI positions relative to their peer group.
 
 ```{r}
-longitudinal.bmi.data <- joined.longitudinal.data %>%
+longitudinal.bmi.data <- doetinchem.data %>%
+  mutate(
+    source = "Doetinchem"
+  ) %>%
+  bind_rows(
+    liss.data %>%
+      mutate(
+        source = "LISS"
+      )
+  ) %>%
   left_join(
     population.level.distribution.parameters %>%
       pivot_longer(

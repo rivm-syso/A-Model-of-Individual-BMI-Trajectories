@@ -141,7 +141,7 @@ gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
   select(-Surveynummer)
 ```
 
-## Weight
+## Survey Weights
 
 The survey weights included in the dataset allow for representative analyses of the Netherlands. Let's check if any of these are missing and whether they are all positive numbers.
 
@@ -219,6 +219,15 @@ gezondheidsmonitor.data %>%
   )
 ```
 
+The dataset contains values for the age of the participants which are rounded down to the nearest year. As a simple solution, half a year is added to these values.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(
+    age = age + 0.5
+  )
+```
+
 # Verify Representativeness
 
 [Placeholder for Text]
@@ -247,7 +256,7 @@ population.by.year.sex.education.and.age %>%
   filter(
     year(date) %in% c(2014, 2016, 2020),
     age_lower >= 25,
-    age_upper <= 75
+    age_upper < 75
   ) %>%
   group_by(year = year(date), sex) %>%
   summarise(
@@ -286,7 +295,7 @@ population.by.year.sex.education.and.age %>%
   filter(
     year(date) %in% c(2014, 2016, 2020),
     age_lower >= 25,
-    age_upper <= 75
+    age_upper < 75
   ) %>%
   group_by(year = year(date), education) %>%
   summarise(
@@ -328,7 +337,7 @@ population.by.year.sex.education.and.age %>%
   filter(
     year(date) %in% c(2014, 2016, 2020),
     age_lower >= 25,
-    age_upper <= 75
+    age_upper < 75
   ) %>%
   group_by(
     year = year(date),
@@ -471,7 +480,6 @@ Let's see how many participants we have per year.
 
 ```{r}
 gezondheidsmonitor.participants.by.year <- gezondheidsmonitor.data %>%
-  group_by(year) %>%
   count(year)
 gezondheidsmonitor.participants.by.year
 ```
