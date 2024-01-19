@@ -3051,8 +3051,9 @@ that there are no missing values.</p>
   </script>
 </div>
 <p>The dataset contains values for the age of the participants which are
-rounded down to the nearest year. As a simple solution, half a year is
-added to these values.</p>
+rounded down to the nearest year. A simple solution to be able to
+interpret their age as the time since birth is to add half a year to
+these values.</p>
 <pre class="r"><code>gezondheidsmonitor.data &lt;- gezondheidsmonitor.data %&gt;%
   mutate(
     age = age + 0.5
