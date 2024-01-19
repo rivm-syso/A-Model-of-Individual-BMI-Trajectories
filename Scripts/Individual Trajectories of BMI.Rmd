@@ -522,7 +522,7 @@ covariance.by.time.difference.plot
 ```
 <center>Figure 5</center>
 
-It can be helpful to visualise the covariance structure together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (6)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels).
+It can be helpful to visualise the covariance structure together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (6)](#fig:Covariance-By-Time-Difference-With-Labels).
 
 <a id="fig:Covariance-By-Time-Difference-With-Labels"/>
 ```{r}
@@ -614,7 +614,7 @@ covariance.by.time.difference.plot +
 ```
 <center>Figure 6</center>
 
-Additionally, we can add the values of the coefficients to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels-And-Values).
+Additionally, we can add the values of the coefficients to [figure (5)](#fig:Covariance-By-Time-Difference), resulting in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-And-Values).
 
 <a id="fig:Covariance-By-Time-Difference-With-Labels-And-Values"/>
 ```{r}
@@ -706,7 +706,7 @@ covariance.by.time.difference.plot +
 ```
 <center>Figure 7</center>
 
-The simulation study in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-With-Labels-And-Values). In light of this, it may be concluded that the individual trajectories of males and females are quite similar.
+The simulation study in the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html) shows that, when fitting the generalised autoregressive model to data, the problem of multicollinearity can arise due to the linear dependence between the three stochastic components of the model. The random intercept, the autoregressive process and the uncorrelated error are not distinct mechanisms; an autoregressive process with perfect temporal correlation leads to a random intercept, whereas a process with zero correlation leads to random noise. So, in a way, our model contains three separate autoregressive processes, each competing to explain part of the observed variance. As a result, small changes in the data may lead to relatively large changes in the estimated parameters even though the resulting trajectories are nearly indistinguishable. The three stochastic components are, therefore, best interpreted together as part of a single mechanism, as depicted in [figure (7)](#fig:Covariance-By-Time-Difference-With-Labels-And-Values). In light of this, it may be concluded that the individual trajectories of males and females are quite similar.
 
 Let's now examine some of the resulting trajectories. As mentioned above, a commonly used method to simulate BMI trajectories within micro-simulations is to assign to each individual a percentile score indicating where they lie within the population level distribution. It is then assumed that this relative position stays fixed, even though the shape of the distribution, and the corresponding BMI value, may change as the individual ages throughout the simulation [@McPherson2007; @OECD2019]. This is called the fixed-percentile method. A more realistic model can have the percentile of each individual fluctuate over time as well [@Vuik2021]. Our approach models the fluctuation over time and we can easily generate some z-score trajectories for both approaches using the functions from the document [_Generalised-Autoregressive-Model.html_](./../../../Utilities/Generalised-Autoregressive-Model.html). These are, then, transformed to BMI trajectories, following [equation (1)](./Population-Level-Distribution-of-BMI.html#eq:Sinh-ArcSinh-Transformation) from the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
 
