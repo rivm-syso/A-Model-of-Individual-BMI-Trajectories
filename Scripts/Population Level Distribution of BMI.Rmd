@@ -677,7 +677,7 @@ ggplot() +
   ) +
   facet_wrap(
     facets = ~ education,
-    labeller = labeller(education = c("1" = "Low", "2" = "Medium", "3" = "High"))
+    labeller = labeller(education = c("1" = "Low education", "2" = "Medium education", "3" = "High education"))
   )
 ```
 <center>Figure 9</center>

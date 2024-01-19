@@ -219,7 +219,7 @@ gezondheidsmonitor.data %>%
   )
 ```
 
-The dataset contains values for the age of the participants which are rounded down to the nearest year. As a simple solution, half a year is added to these values.
+The dataset contains values for the age of the participants which are rounded down to the nearest year. A simple solution to be able to interpret their age as the time since birth is to add half a year to these values.
 
 ```{r}
 gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
