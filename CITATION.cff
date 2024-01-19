@@ -17,8 +17,8 @@ authors:
     family-names: Giessen
     email: a.vangiessen@utwente.nl
     affiliation: >-
-      University of Twente, Faculty of Behavioural,
-      Management and Social Sciences
+      National Institute for Public Health and the
+      Environment (RIVM)
     orcid: 'https://orcid.org/0000-0003-4521-9500'
   - given-names: H. Susan J.
     family-names: Picavet
@@ -34,6 +34,9 @@ authors:
       National Institute for Public Health and the
       Environment (RIVM)
     orcid: 'https://orcid.org/0000-0002-3916-9095'
+identifiers:
+  - type: doi
+    value: 10.1093/imammb/dqad009
 repository-code: >-
   https://github.com/rivm-syso/A-Model-of-Individual-BMI-Trajectories/
 abstract: >-
@@ -61,4 +64,4 @@ keywords:
   - BMI
   - life course
   - individual trajectories
-license: GPL-3.0
+license: CC-BY-4.0
