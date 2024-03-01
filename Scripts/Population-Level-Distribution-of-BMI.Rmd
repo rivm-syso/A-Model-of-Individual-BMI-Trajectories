@@ -1,0 +1,1160 @@
+---
+title: "Population Level Distribution of BMI"
+author: "Laurens Bogaardt"
+date: "2024-02-26"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
+
+This document analyses the population level distribution of BMI of the adult population of the Netherlands in 2012. Other documents include [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html) which analyses the historical trend of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+
+Before we begin, we need to load the packages _gamlss_, _splines_, _tidyverse_, _gganimate_, _gifski_, _ggbreak_ and _vtable_ [@Rigby2005; @R2021; @tidyverse2019; @gganimate2020; @gifski2022; @ggbreak2021; @vtable2021]. And we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(gamlss)
+library(splines)
+library(tidyverse)
+library(gganimate)
+library(gifski)
+library(ggbreak)
+library(vtable)
+set.seed(456)
+```
+
+# Load Data
+
+The Public Health Monitor dataset is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html), where the data are also explored in more detail.
+
+The data were gathered in September, October and November of 2012. The questionnaire was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our model. Furthermore, the data for 2016 will be reserved for external validation, described below. This leads to our choice of fitting the model on the 2012 data.
+
+Throughout the document, we will limit the output in each step. This is because the Public Health Monitor data are not open access. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.data <- read_csv(
+  file = "../Output-Data/Gezondheidsmonitor.csv",
+  col_types = cols_only(
+    year = col_integer(),
+    sex = col_factor(levels = c("M", "F")),
+    education = col_factor(levels = c("L", "M", "H"), ordered = TRUE),
+    age = col_double(),
+    weight = col_double(),
+    bmi = col_double()
+  )
+)
+vtable(bmi.data, out = "return", missing = TRUE)
+```
+
+# Categorical Analysis
+
+We describe the population level distribution of BMI using the sinh-arcsinh normal distribution [@Jones2009; @Jones2019]. It is a variation on the normal distribution following the transformation shown in [equation (1)](#eq:Sinh-ArcSinh-Transformation), where $z$ is a normally distributed random variable with zero mean and unit standard deviation. This transformation will also be relevant in the document [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html), when we apply it to our longitudinal data to turn the BMI values into z-scores. Whenever $\nu = 0$ and $\tau =  1$, a regular normal distribution is obtained where $\mu$ and $\sigma$ control location and scale. Increased values of $\nu$ and $\tau$ result in positive skew and negative kurtosis, respectively.
+
+<a id="eq:Sinh-ArcSinh-Transformation"/>
+\begin{equation}
+\tag{1}
+\text{BMI} \, = \, \mu \, + \, \sigma \times \, \tau \, \times \, \sinh \left(\frac{\text{sinh}^{-1}(z) \, + \, \nu}{\tau}\right)
+\end{equation}
+
+To get a bit more feeling for this distribution, let's examine its dependency on the parameters more closely using an animation. We would like to visualise what happens when we alter any of the four parameters of the sinh-arcsinh distribution. The following table creates a list of frames, each containing slightly different parameter values. 
+
+```{r}
+shash.animation.parameters <- tibble(
+  frame = seq(100),
+  mu = ifelse(
+    0 * 25 < frame & frame <= 1 * 25,
+    sin(2 * pi * (frame / 25 - 0)),
+    0
+  ),
+  sigma = ifelse(
+    1 * 25 < frame & frame <= 2 * 25,
+    exp(sin(2 * pi * (frame / 25 - 1))),
+    1
+  ),
+  nu = ifelse(
+    2 * 25 < frame & frame <= 3 * 25,
+    sin(2 * pi * (frame / 25 - 2)),
+    0
+  ),
+  tau = ifelse(
+    3 * 25 < frame & frame <= 4 * 25,
+    exp(sin(2 * pi * (frame / 25 - 3))),
+    1
+  )
+)
+shash.animation.parameters
+```
+
+For each frame, we will create four plots; the normal distribution, the sinh-arcsinh transformation, the sinh-arcsinh normal distribution and the cumulative sinh-arcsinh normal distribution. By expanding on the table of parameter values, we can create $x$ and $y$ coordinates for each of these four plots.
+
+```{r}
+shash.animation.data.points <- shash.animation.parameters %>%
+  group_by(frame) %>%
+  reframe(
+    x = seq(-3, 3, 0.06),
+    "Normal distribution" = dnorm(x, mu, sigma),
+    "Sinh-ArcSinh transformation" = qSHASHo2(pnorm(x), 0, 1, nu, tau),
+    "Sinh-ArcSinh distribution" = dSHASHo2(x, mu, sigma, nu, tau),
+    "Sinh-ArcSinh cumulative distribution" = pSHASHo2(x, mu, sigma, nu, tau)
+  ) %>%
+  pivot_longer(
+    cols = !c(frame, x)
+  ) %>%
+  mutate(
+    name = ordered(name, levels = c("Normal distribution", "Sinh-ArcSinh transformation", "Sinh-ArcSinh distribution", "Sinh-ArcSinh cumulative distribution"))
+  ) %>%
+  filter(
+    value > -3,
+    value < 3
+  )
+head(shash.animation.data.points)
+```
+
+Using the table of $x$ and $y$ coordinates for each of the four plots, we can create our animation, shown in [figure (1)](#fig:Shash-Animation).
+
+<a id="fig:Shash-Animation"/>
+```{r results = TRUE, message = FALSE, warning = FALSE}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = value,
+      colour = name
+    ),
+    data = shash.animation.data.points,
+    size = 2
+  ) +
+  scale_colour_discrete(guide = "none") +
+  facet_wrap(
+    facets = vars(name),
+    scales = "free_y"
+  ) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "{shash.animation.parameters %>% filter(frame == {current_frame}) %>% summarise(sprintf('Sinh-ArcSinh distribution for mu: %.2f, sigma: %.2f, nu: %.2f and tau: %.2f', mu, sigma, nu, tau))}"
+  ) +
+  transition_manual(frame)
+```
+<center>Figure 1</center>
+
+The top left plot shows the normal distribution. The top right plot shows the sinh-arcsinh transformation. When applied to the cumulative normal distribution function, this transformation yields the cumulative distribution function on the bottom right, which has as its density function the distribution on the bottom left. As mentioned before, whenever $\nu = 0$ and $\tau =  1$, a regular normal distribution is obtained where $\mu$ and $\sigma$ control location and scale. Increased values of $\nu$ and $\tau$ result in positive skew and negative kurtosis, respectively.
+
+The sinh-arcsinh distribution has tails which, like the normal distribution, stretch from $-\infty$ to $+\infty$, well beyond the range of physically possible BMI values. As seen in [figure (2)](#fig:BMI-Distribution), this is not a huge problem as these tails are not heavy and most values fall in a physically realistic range. Another flexible distribution which we could have chosen is the Box-Cox power exponential. This was used in previous research to describe the population level distribution of BMI and only predicts positive values [@Majer2013; @Yamada2020]. One minor downside of this distribution is that the transformation to z-scores, which will be relevant in the document [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html), is less obvious than the simple transformation of [equation (1)](#eq:Sinh-ArcSinh-Transformation).
+
+## Overall
+
+Using the Public Health Monitor dataset, and taking into account the survey weights, we can fit the sinh-arcsinh normal distribution to our BMI data and estimate the values of $\mu$, $\sigma$, $\nu$ and $\tau$ using maximum likelihood. This describes the overall population level distribution of BMI of adults in the Netherlands around October 2012.
+
+```{r}
+bmi.parameters <- bmi.data %>%
+  filter(year == 2012) %>%
+  group_modify(
+    ~ gamlssML(
+      .x$bmi,
+      family = SHASHo2,
+      weights = .x$weight
+    ) %>%
+      predictAll(
+        data = .x$bmi,
+        newdata = data.frame(1),
+        output = "data.frame"
+      )
+  )
+bmi.parameters
+```
+
+We visualise the resulting probability density function in [figure (2)](#fig:BMI-Distribution).
+
+<a id="fig:BMI-Distribution"/>
+```{r}
+ggplot() +
+  geom_function(
+    fun = dSHASHo2,
+    args = bmi.parameters
+  ) +
+  xlim(15, 45) +
+  labs(
+    x = "BMI",
+    y = "Probability density"
+  )
+```
+<center>Figure 2</center>
+
+## Sex
+
+We are creating a risk factor model of BMI with the purpose of facilitating government policy analyses. For such simulations, it is helpful to be able to stratify the population by sex, level of education and age. These variables are also included in the Public Health Monitor dataset. For completeness, let's run through all combinations of these three characteristics, starting with sex.
+
+```{r}
+bmi.parameters.by.sex <- bmi.data %>%
+  filter(year == 2012) %>%
+  group_by(sex) %>%
+  group_modify(
+    ~ gamlssML(
+      .x$bmi,
+      family = SHASHo2,
+      weights = .x$weight
+    ) %>%
+      predictAll(
+        data = .x$bmi,
+        newdata = data.frame(1),
+        output = "data.frame"
+      )
+  ) %>%
+  ungroup()
+bmi.parameters.by.sex
+```
+
+We visualise the resulting probability density functions in [figure (3)](#fig:BMI-Distribution-by-Sex).
+
+<a id="fig:BMI-Distribution-by-Sex"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = y,
+      col = sex
+    ),
+    data = bmi.parameters.by.sex %>%
+      group_by(sex) %>%
+      reframe(
+        x = seq(15, 45, 0.1),
+        y = dSHASHo2(x, mu, sigma, nu, tau)
+      )
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("M" = "Male", "F" = "Female")
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density"
+  )
+```
+<center>Figure 3</center>
+
+## Education
+
+Let's now fit the population level distribution of BMI, stratified by level of education. Education was measured as the highest level reached and categorised into three levels. The lowest level applies to people with intermediate secondary education or less, the medium level aggregates higher secondary- and intermediate vocational education and highest level includes higher vocational education and university.
+
+```{r}
+bmi.parameters.by.education <- bmi.data %>%
+  filter(year == 2012) %>%
+  group_by(education) %>%
+  group_modify(
+    ~ gamlssML(
+      .x$bmi,
+      family = SHASHo2,
+      weights = .x$weight
+    ) %>%
+      predictAll(
+        data = .x$bmi,
+        newdata = data.frame(1),
+        output = "data.frame"
+      )
+  ) %>%
+  ungroup()
+bmi.parameters.by.education
+```
+
+We visualise the resulting probability density functions in [figure (4)](#fig:BMI-Distribution-by-Education).
+
+<a id="fig:BMI-Distribution-by-Education"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = y,
+      linetype = education
+    ),
+    data = bmi.parameters.by.education %>%
+      group_by(education) %>%
+      reframe(
+        x = seq(15, 45, 0.1),
+        y = dSHASHo2(x, mu, sigma, nu, tau)
+      )
+  ) +
+  scale_linetype_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density"
+  )
+```
+<center>Figure 4</center>
+
+## Sex and Education
+
+Let's now fit the population level distribution of BMI, stratified by both sex and level of education.
+
+```{r}
+bmi.parameters.by.sex.and.education <- bmi.data %>%
+  filter(year == 2012) %>%
+  group_by(sex, education) %>%
+  group_modify(
+    ~ gamlssML(
+      .x$bmi,
+      family = SHASHo2,
+      weights = .x$weight
+    ) %>%
+      predictAll(
+        data = .x$bmi,
+        newdata = data.frame(1),
+        output = "data.frame"
+      )
+  ) %>%
+  ungroup()
+bmi.parameters.by.sex.and.education
+```
+
+We visualise the resulting probability density functions in the [figure (5)](#fig:BMI-Distribution-by-Sex-and-Education).
+
+<a id="fig:BMI-Distribution-by-Sex-and-Education"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = y,
+      col = sex,
+      linetype = education
+    ),
+    data = bmi.parameters.by.sex.and.education %>%
+      group_by(sex, education) %>%
+      reframe(
+        x = seq(15, 45, 0.1),
+        y = dSHASHo2(x, mu, sigma, nu, tau)
+      )
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("M" = "Male", "F" = "Female")
+  ) +
+  scale_linetype_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density"
+  )
+```
+<center>Figure 5</center>
+
+# Spline Analysis
+
+So far, we have estimated the population level distribution parameters by stratifying the dataset using the categorical variables sex and level of education. This procedure will not work as easily for a continuous variable such as age. Luckily, the _gamlss_ package makes it possible to add explanatory variables and allows us to model each of the four distribution parameters as functions of the predictors [@Rigby2005; @Stasinopoulos2007]. So we incorporate age into our analysis by assuming that the parameters $\mu$, $\sigma$, $\nu$ and $\tau$ depend on some smoothly varying function of age.
+
+To get a bit more feeling for smoothly varying distributions, we will again create an animation. [Figure (7)](#fig:Smoothly-Varying-Animation) visualises how the BMI distribution depends on age. But to create this animation, we first need to fit our model to the data at least once to get expressions for the smoothly varying functions. This is done in the subsection below.
+
+## Age
+
+We will again run through all combinations of the characteristics, starting with an analysis of the BMI distribution by age alone. Initially, we will not make any assumptions about the functional form of the age-dependency, but rather use B-splines to fit a smooth and flexible function. The number of degrees of freedom for these B-splines is somewhat arbitrarily chosen, but balances parsimony with flexibility.
+
+The interpretation of the age-dependency is up for debate. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to their biological age from effects due to their cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption here that the observed age-dependency is not due to cohort effects but only due to biological effects.
+
+Additionally, the data may be influenced by missingness due to BMI-related mortality. If a higher BMI leads to a higher mortality rate, the anticipated BMI values of the population's heaviest people will be unobserved. The resulting distribution then shows a lower mean BMI, especially at older ages. By obtaining information about the link between BMI and mortality, it becomes possible to compensate for this type of missingness. An easy method is to weight each participant with the inverse of their BMI-related mortality rate before fitting the distribution. This is left for further research.
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.parameters.by.age <- bmi.data %>%
+  filter(year == 2012) %>%
+  left_join(
+    bmi.parameters,
+    by = character()
+  ) %>%
+  group_modify(
+    ~ gamlss(
+      formula = bmi ~ bs(age, df = 5),
+      sigma.formula = ~ bs(age, df = 5),
+      nu.formula = ~ bs(age, df = 4),
+      tau.formula = ~ bs(age, df = 4),
+      family = SHASHo2(),
+      data = .x,
+      weights = weight,
+      method = mixed(15, 15),
+      mu.start = .x$mu,
+      sigma.start = .x$sigma,
+      nu.start = .x$nu,
+      tau.start = .x$tau,
+      trace = FALSE
+    ) %>%
+      predictAll(
+        newdata = data.frame(age = seq(20, 95)),
+        data = .x
+      ) %>%
+      cbind(data.frame(age = seq(20, 95)), .)
+  )
+bmi.parameters.by.age
+```
+
+We visualise the resulting distribution parameters in [figure (6)](#fig:BMI-Distribution-by-Age). Note that there is a break in the $y$-axis between $4$ and $20$ [@ggbreak2021].
+
+<a id="fig:BMI-Distribution-by-Age"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name
+    ),
+    data = bmi.parameters.by.age %>%
+      pivot_longer(c(mu, sigma, nu, tau)) %>%
+      mutate(name = ordered(name, levels = c("mu", "sigma", "nu", "tau")))
+  ) +
+  expand_limits(y = c(-0.2, 26.2)) +
+  labs(
+    x = "Age",
+    y = "Parameter values"
+  ) +
+  scale_y_break(
+    breaks = c(4.5, 19.5),
+    scales = "free"
+  ) +
+  scale_colour_discrete(
+    name = "Parameter",
+    labels = c(expression(mu), expression(sigma), expression(nu), expression(tau))
+  )
+```
+<center>Figure 6</center>
+
+Let's examine what these parameters entail using an animation. The following table creates a list of frames, each containing slightly different values of age.
+
+```{r}
+smoothly.varying.animation.data.left <- tibble(
+  facet = "left",
+  frame = seq(100),
+  age = round(57.5 + 37.5 * sin(2 * pi * frame / 100))
+)
+smoothly.varying.animation.data.left
+```
+
+The following table creates, for each frame, the $x$ and $y$ coordinates of the sinh-arcsinh normal distribution taking into account that the values of $\mu$, $\sigma$, $\nu$ and $\tau$ vary by age.
+
+```{r}
+smoothly.varying.animation.data.right <- smoothly.varying.animation.data.left %>%
+  left_join(
+    bmi.parameters.by.age,
+    by = "age"
+  ) %>%
+  group_by(frame) %>%
+  reframe(
+    facet = "right",
+    x = seq(15, 45, 0.2),
+    y = dSHASHo2(x, mu, sigma, nu, tau)
+  )
+head(smoothly.varying.animation.data.right)
+```
+
+We can combine both tables to create the animation in [figure (7)](#fig:Smoothly-Varying-Animation).
+
+<a id="fig:Smoothly-Varying-Animation"/>
+```{r results = TRUE, message = FALSE, warning = FALSE}
+ggplot() +
+  geom_jitter(
+    aes(
+      x = age,
+      y = bmi
+    ),
+    data = bmi.data %>%
+      filter(year == 2012, age <= 95) %>%
+      sample_n(10 ^ 4) %>%
+      mutate(facet = "left"),
+    width = 1,
+    height = 1
+  ) +
+  geom_vline(
+    aes(
+      xintercept = age
+    ),
+    data = smoothly.varying.animation.data.left,
+    col = "#00BFC4",
+    size = 2
+  ) +
+  geom_label(
+    mapping = aes(
+      label = age,
+      x = age,
+      y = 30
+    ),
+    data = smoothly.varying.animation.data.left,
+    size = 5,
+    col = "#00BFC4",
+    label.size = 1,
+    label.padding = unit(0.4, "lines"),
+    label.r = unit(0.7, "lines")
+  ) +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = y
+    ),
+    data = smoothly.varying.animation.data.right,
+    col = "#00BFC4",
+    size = 2
+  ) +
+  labs(
+    title = "{smoothly.varying.animation.data.left %>% filter(frame == {current_frame}) %>% summarise(sprintf('Smoothly varying distribution for age %2d', age))}",
+    x = paste(c("Age", rep(" ", 120), "BMI"), collapse = ""),
+    y = NULL
+  ) +
+  facet_wrap(
+    facets = vars(facet),
+    scales = "free",
+    strip.position = "left",
+    labeller = as_labeller(c("left" = "BMI", "right" = "Probability density"))
+  ) +
+  theme(
+    strip.background = element_blank(),
+    strip.placement = "outside",
+    strip.text = element_text(size = 12)
+  ) +
+  transition_manual(frame = frame)
+```
+<center>Figure 7</center>
+
+What we see is the scatter plot of BMI values by age. The four parameters which determine the shape of the distribution depend on age and vary smoothly along the $x$-axis. This can be observed partially within the scatter plot, but is more easily seen in the accompanying distribution on the right.
+
+## Sex and Age
+
+Let's now fit the population level distribution of BMI, stratified by sex and age.
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.parameters.by.sex.and.age <- bmi.data %>%
+  filter(year == 2012) %>%
+  left_join(
+    bmi.parameters.by.sex,
+    by = "sex"
+  ) %>%
+  group_by(sex) %>%
+  group_modify(
+    ~ gamlss(
+      formula = bmi ~ bs(age, df = 5),
+      sigma.formula = ~ bs(age, df = 5),
+      nu.formula = ~ bs(age, df = 4),
+      tau.formula = ~ bs(age, df = 4),
+      family = SHASHo2(),
+      data = .x,
+      weights = weight,
+      method = mixed(15, 15),
+      mu.start = .x$mu,
+      sigma.start = .x$sigma,
+      nu.start = .x$nu,
+      tau.start = .x$tau,
+      trace = FALSE
+    ) %>%
+      predictAll(
+        newdata = data.frame(age = seq(20, 95)),
+        data = .x
+      ) %>%
+      cbind(data.frame(age = seq(20, 95)), .)
+  ) %>%
+  ungroup()
+bmi.parameters.by.sex.and.age
+```
+
+We visualise the resulting distribution parameters in [figure (8)](#fig:BMI-Distribution-by-Sex-and-Age).
+
+<a id="fig:BMI-Distribution-by-Sex-and-Age"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name
+    ),
+    data = bmi.parameters.by.sex.and.age %>%
+      pivot_longer(c(mu, sigma, nu, tau)) %>%
+      mutate(name = ordered(name, levels = c("mu", "sigma", "nu", "tau")))
+  ) +
+  expand_limits(y = c(-0.2, 26.2)) +
+  labs(
+    x = "Age",
+    y = "Parameter values"
+  ) +
+  scale_y_break(
+    breaks = c(4.5, 19.5),
+    scales = "free"
+  ) +
+  scale_colour_discrete(
+    name = "Parameter",
+    labels = c(expression(mu), expression(sigma), expression(nu), expression(tau))
+  ) +
+  facet_wrap(
+    facets = ~ sex,
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
+  )
+```
+<center>Figure 8</center>
+
+## Education and Age
+
+Let's now fit the population level distribution of BMI, stratified by level of education and age.
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.parameters.by.education.and.age <- bmi.data %>%
+  filter(year == 2012) %>%
+  left_join(
+    bmi.parameters.by.education,
+    by = "education"
+  ) %>%
+  group_by(education) %>%
+  group_modify(
+    ~ gamlss(
+      formula = bmi ~ bs(age, df = 5),
+      sigma.formula = ~ bs(age, df = 5),
+      nu.formula = ~ bs(age, df = 4),
+      tau.formula = ~ bs(age, df = 4),
+      family = SHASHo2(),
+      data = .x,
+      weights = weight,
+      method = mixed(15, 15),
+      mu.start = .x$mu,
+      sigma.start = .x$sigma,
+      nu.start = .x$nu,
+      tau.start = .x$tau,
+      trace = FALSE
+    ) %>%
+      predictAll(
+        newdata = data.frame(age = seq(20, 95)),
+        data = .x
+      ) %>%
+      cbind(data.frame(age = seq(20, 95)), .)
+  ) %>%
+  ungroup()
+bmi.parameters.by.education.and.age
+```
+
+We visualise the resulting distribution parameters in [figure (9)](#fig:BMI-Distribution-by-Education-and-Age).
+
+<a id="fig:BMI-Distribution-by-Education-and-Age"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name
+    ),
+    data = bmi.parameters.by.education.and.age %>%
+      pivot_longer(c(mu, sigma, nu, tau)) %>%
+      mutate(name = ordered(name, levels = c("mu", "sigma", "nu", "tau")))
+  ) +
+  expand_limits(y = c(-0.2, 26.2)) +
+  labs(
+    x = "Age",
+    y = "Parameter values"
+  ) +
+  scale_y_break(
+    breaks = c(4.5, 19.5),
+    scales = "free"
+  ) +
+  scale_colour_discrete(
+    name = "Parameter",
+    labels = c(expression(mu), expression(sigma), expression(nu), expression(tau))
+  ) +
+  facet_wrap(
+    facets = ~ education,
+    labeller = labeller(education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"))
+  )
+```
+<center>Figure 9</center>
+
+## Sex, Education and Age
+
+Let's now fit the population level distribution of BMI, stratified by sex, level of education and age.
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.parameters.by.sex.education.and.age <- bmi.data %>%
+  filter(year == 2012) %>%
+  left_join(
+    bmi.parameters.by.sex.and.education,
+    by = c("sex", "education")
+  ) %>%
+  group_by(sex, education) %>%
+  group_modify(
+    ~ gamlss(
+      formula = bmi ~ bs(age, df = 5),
+      sigma.formula = ~ bs(age, df = 5),
+      nu.formula = ~ bs(age, df = 4),
+      tau.formula = ~ bs(age, df = 4),
+      family = SHASHo2(),
+      data = .x,
+      weights = weight,
+      method = mixed(15, 15),
+      mu.start = .x$mu,
+      sigma.start = .x$sigma,
+      nu.start = .x$nu,
+      tau.start = .x$tau,
+      trace = FALSE
+    ) %>%
+      predictAll(
+        newdata = data.frame(age = seq(20, 95)),
+        data = .x
+      ) %>%
+      cbind(data.frame(age = seq(20, 95)), .)
+  ) %>%
+  ungroup()
+bmi.parameters.by.sex.education.and.age
+```
+
+We visualise the resulting distribution parameters in [figure (10)](#fig:BMI-Distribution-by-Sex-Education-and-Age).
+
+<a id="fig:BMI-Distribution-by-Sex-Education-and-Age"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name,
+      linetype = education
+    ),
+    data = bmi.parameters.by.sex.education.and.age %>%
+      pivot_longer(c(mu, sigma, nu, tau)) %>%
+      mutate(name = ordered(name, levels = c("mu", "sigma", "nu", "tau")))
+  ) +
+  expand_limits(y = c(-0.2, 26.2)) +
+  labs(
+    x = "Age",
+    y = "Parameter values"
+  ) +
+  scale_y_break(
+    breaks = c(4.5, 19.5),
+    scales = "free"
+  ) +
+  scale_linetype_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  ) +
+  scale_colour_discrete(
+    name = "Parameter",
+    labels = c(expression(mu), expression(sigma), expression(nu), expression(tau))
+  ) +
+  facet_wrap(
+    facets = ~ sex,
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
+  )
+```
+<center>Figure 10</center>
+
+# Parametric Analysis
+
+We have fitted age-dependent splines to all four of the distribution parameters, by sex and level of education. [Figure (10)](#fig:BMI-Distribution-by-Sex-Education-and-Age) indicates an approximately quadratic relationship with age for the $\mu$ and $\sigma$ parameters, whereas the level of education mostly impacts their intercept. The $\nu$ and $\tau$ parameters barely differ by age or education. So we will repeat the analysis for a restricted, parametric model, given by [equation (2)](#eq:Population-Level-Distribution-Parameters). The limited number of parameters results in a parsimonious model and subsequently makes the application in health simulations easier. We will develop completely separate models for both sexes, as we believe the differences in biological and environmental influences for males and females warrant distinct models.
+
+<a id="eq:Population-Level-Distribution-Parameters"/>
+\begin{equation}
+\tag{2}
+\begin{array}{@{\ }rcl@{\ }}
+\mu & = & \mu_{education} \, + \, \mu_{age} \, \times \, age \, + \, \mu_{age^2} \, \times \, age^2\\
+\sigma & = & \sigma_{education} \, + \, \sigma_{age} \, \times \, age \, + \, \sigma_{age^2} \, \times \, age^2\\
+\nu & = & \nu_{intercept}\\
+\tau & = & \tau_{intercept}
+\end{array}
+\end{equation}
+
+```{r results = TRUE, message = FALSE, warning = FALSE}
+bmi.parametric.coefficients <- bmi.data %>%
+  filter(year == 2012) %>%
+  left_join(
+    bmi.parameters.by.sex,
+    by = c("sex")
+  ) %>%
+  group_by(sex) %>%
+  group_modify(
+    ~ gamlss(
+      formula = bmi ~ 0 + education + age + I(age ^ 2),
+      sigma.formula = ~ 0 + education + age + I(age ^ 2),
+      nu.formula = ~ 1,
+      tau.formula = ~ 1,
+      family = SHASHo2(mu.link = "identity", sigma.link = "identity", nu.link = "identity", tau.link = "identity"),
+      data = .x,
+      weights = weight,
+      method = RS(60),
+      mu.start = .x$mu,
+      sigma.start = .x$sigma,
+      nu.start = .x$nu,
+      tau.start = .x$tau,
+      trace = FALSE
+    ) %>%
+      coefAll() %>%
+      unlist() %>%
+      as_tibble_row() %>%
+      setNames(c("mu.education.L", "mu.education.M", "mu.education.H", "mu.age.1", "mu.age.2", "sigma.education.L", "sigma.education.M", "sigma.education.H", "sigma.age.1", "sigma.age.2", "nu", "tau"))
+  ) %>%
+  ungroup()
+bmi.parametric.coefficients
+```
+
+To visualise the resulting distribution parameters in a figure, we first create a table with the values for $\mu$, $\sigma$, $\nu$ and $\tau$ by sex, level of education and age using the functional form of [equation (2)](#eq:Population-Level-Distribution-Parameters).
+
+```{r}
+bmi.parametric.parameters <- bmi.parametric.coefficients %>%
+  pivot_longer(
+    cols = contains("education"),
+    names_to = c(".value", "education"),
+    names_pattern = "(.*.education).(.)"
+  ) %>%
+  mutate(education = factor(education, levels = c("L", "M", "H"), ordered = TRUE)) %>%
+  expand_grid(age = seq(20, 95)) %>%
+  mutate(
+    mu = mu.education + mu.age.1 * age + mu.age.2 * age * age,
+    sigma = sigma.education + sigma.age.1 * age + sigma.age.2 * age * age
+  ) %>%
+  select(sex, education, age, mu, sigma, nu, tau) %>%
+  pivot_longer(c(mu, sigma, nu, tau)) %>%
+  mutate(name = ordered(name, levels = c("mu", "sigma", "nu", "tau")))
+bmi.parametric.parameters
+```
+
+We visualise the resulting distribution parameters in [figure (11)](#fig:BMI-Distribution-Parameters).
+
+<a id="fig:BMI-Distribution-Parameters"/>
+```{r}
+bmi.parametric.plot <- ggplot() +
+  geom_line(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name,
+      linetype = education
+    ),
+    data = bmi.parametric.parameters
+  ) +
+  expand_limits(y = c(-0.2, 26.2)) +
+  labs(
+    x = "Age",
+    y = "Parameter values"
+  ) +
+  scale_y_break(
+    breaks = c(4.5, 19.5),
+    scales = "free"
+  ) +
+  scale_linetype_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  ) +
+  scale_colour_discrete(
+    name = "Parameter",
+    labels = c(expression(mu), expression(sigma), expression(nu), expression(tau))
+  ) +
+  facet_wrap(
+    facets = ~ sex,
+    labeller = labeller(sex = c("M" = "Male", "F" = "Female"))
+  )
+bmi.parametric.plot
+```
+<center>Figure 11</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Population-Level-Distribution-Parameters.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+It can be helpful to visualise the distribution parameters as functions of sex, level of education and age together with the associated coefficients in a single plot. This is easily achieved by adding labels to [figure (11)](#fig:BMI-Distribution-Parameters), resulting in [figure (12)](#fig:BMI-Distribution-Parameters-with-Labels).
+
+<a id="fig:BMI-Distribution-Parameters-with-Labels"/>
+```{r}
+bmi.parametric.plot +
+  geom_label(
+    mapping = aes(
+      x = x,
+      y = y,
+      label = label
+    ),
+    alpha = 0.5,
+    parse = TRUE,
+    show.legend = FALSE,
+    data = bmi.parametric.coefficients %>%
+      pivot_longer(!sex) %>%
+      mutate(
+        x = rep(c(33, 33, 33, 60, 78, 33, 33, 33, 60, 78, 60, 60), 2),
+        y = rep(c(23.5, 22.1, 20.7, 24.5, 23, 3.3, 2.4, 1.5, 3.5, 2.25, 0.9, 0.25), 2),
+        text = rep(c("mu [edu] ^ high == '%0.2f'", "mu [edu] ^ med == '%0.2f'", "mu [edu] ^ low == '%0.2f'", "mu [age] == '%0.3f'", "mu [age ^ 2] == '%0.4f'", "sigma [edu] ^ high == '%0.2f'", "sigma [edu] ^ med == '%0.2f'", "sigma [edu] ^ low == '%0.2f'", "sigma [age] == '%0.3f'", "sigma [age ^ 2] == '%0.4f'", "tau == '%0.2f'", "nu == '%0.2f'"), 2),
+        label = sprintf(text, value)
+      )
+  )
+```
+<center>Figure 12</center>
+
+Finally, we may want to compare the distribution parameters from our parametric analysis with those from our spline analysis. This is easily achieved by plotting the data from the spline analysis on top of [figure (11)](#fig:BMI-Distribution-Parameters), resulting in [figure (13)](#fig:BMI-Distribution-Parameters-with-Splines).
+
+<a id="fig:BMI-Distribution-Parameters-with-Splines"/>
+```{r}
+bmi.parametric.plot +
+  geom_point(
+    mapping = aes(
+      x = age,
+      y = value,
+      col = name,
+      shape = education
+    ),
+    data = bmi.parameters.by.sex.education.and.age %>%
+      pivot_longer(c(mu, sigma, nu, tau)),
+    alpha = 0.3
+  ) +
+  scale_shape_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  )
+```
+<center>Figure 13</center>
+
+Note that we are purposefully not using a statistical test to compare these two models. It may very well be that such a test would indicate that adding degrees of freedom to our parametric model will result in a better fit. But we are not aiming to produce the best fitting model, we are building a risk-factor model for use in health simulations. As such, we are choosing to value simplicity over predictive power.
+
+# Validation
+
+To compare the model's predictions and the underlying data, we can categorise BMI into underweight (values below $18.5 kg/m^2$), normal weight ($18.5 - 25 kg/m^2$), overweight ($25 - 30 kg/m^2$) or obese (values of $30 kg/m^2$ and above) and determine the observed and modelled prevalences of each of these categories. In order for demography not to play a role in this comparison, we apply the model to the original Public Health Monitor dataset and predict for each participant what the prevalence of the BMI categories would be, given their sex, level of education and age.
+
+```{r}
+bmi.data <- bmi.data %>%
+  left_join(
+    bmi.parametric.coefficients %>%
+      pivot_longer(
+        cols = contains("education"),
+        names_to = c(".value", "education"),
+        names_pattern = "(.*.education).(.)"
+      ) %>%
+      mutate(education = factor(education, levels = c("L", "M", "H"), ordered = TRUE)),
+    by = c("sex", "education")
+  ) %>%
+  mutate(
+    bmi.category = cut(bmi, c(0, 18.5, 25, 30, Inf), right = FALSE),
+    mu = mu.education + mu.age.1 * age + mu.age.2 * age * age,
+    sigma = sigma.education + sigma.age.1 * age + sigma.age.2 * age * age,
+    `[0,18.5)` = pSHASHo2(18.5, mu, sigma, nu, tau),
+    `[18.5,25)` = pSHASHo2(25, mu, sigma, nu, tau) - pSHASHo2(18.5, mu, sigma, nu, tau),
+    `[25,30)` = pSHASHo2(30, mu, sigma, nu, tau) - pSHASHo2(25, mu, sigma, nu, tau),
+    `[30,Inf)` = 1 - pSHASHo2(30, mu, sigma, nu, tau)
+  ) %>%
+  select(-matches("mu|sigma|nu|tau"))
+vtable(bmi.data, out = "return", missing = TRUE)
+```
+
+For a fair comparison, we also need to include the survey weights when determining the predicted prevalences of the BMI categories.
+
+```{r}
+model.bmi.by.sex.education.and.age <- bmi.data %>%
+  filter(
+    age >= 20,
+    age < 95
+  ) %>%
+  group_by(
+    year,
+    sex,
+    education,
+    age = cut(age, seq(20, 95, 5), right = FALSE)
+  ) %>%
+  summarise(
+    `[0,18.5)` = weighted.mean(`[0,18.5)`, weight),
+    `[18.5,25)` = weighted.mean(`[18.5,25)`, weight),
+    `[25,30)` = weighted.mean(`[25,30)`, weight),
+    `[30,Inf)` = weighted.mean(`[30,Inf)`, weight),
+    .groups = "drop"
+  ) %>%
+  ungroup() %>%
+  pivot_longer(
+    cols = c(`[0,18.5)`, `[18.5,25)`, `[25,30)`, `[30,Inf)`),
+    names_to = "bmi",
+    values_to = "prevalence",
+    names_transform = factor
+  )
+model.bmi.by.sex.education.and.age
+```
+
+The observed prevalences can simply be determined by summing over all participants.
+
+```{r}
+observed.bmi.by.sex.education.and.age <- bmi.data %>%
+  filter(
+    age >= 20,
+    age < 95
+  ) %>%
+  group_by(
+    year,
+    sex,
+    education,
+    age = cut(age, seq(20, 95, 5), right = FALSE),
+    bmi = bmi.category
+  ) %>%
+  summarise(
+    prevalence = sum(weight),
+    .groups = "drop_last"
+  ) %>%
+  mutate(
+    prevalence = prevalence / sum(prevalence)
+  ) %>%
+  ungroup()
+observed.bmi.by.sex.education.and.age
+```
+
+## Internal Validation
+
+We first make a comparison for the 2012 data, as a way to assess the fit of the model. [Figure (14)](#fig:Population-Level-Prevalences) shows the resulting prevalences, stratified by sex, level of education and age. The model's values are necessarily more smooth due to the low degree of the age polynomial in [equation (2)](#eq:Population-Level-Distribution-Parameters), but the prediction shows good correspondence with the observed data.
+
+<a id="fig:Population-Level-Prevalences"/>
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
+      y = age,
+      fill = factor(sex, levels = c("M", "F", "U"))
+    ),
+    data = observed.bmi.by.sex.education.and.age %>%
+      filter(year == 2012)
+  ) +
+  geom_point(
+    mapping = aes(
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
+      y = age
+    ),
+    data = model.bmi.by.sex.education.and.age %>%
+      filter(year == 2012),
+    size = 0.8
+  ) +
+  scale_x_continuous(
+    labels = abs,
+    breaks = seq(-60, 60, 30),
+    expand = c(0, 0)
+  ) +
+  scale_y_discrete(
+    labels = function(x){gsub("\\[(.*),(.*)\\)", "\\1-\\2", x)}
+  ) +
+  theme(axis.text.y = element_text(size = 7)) +
+  labs(
+    x = "Prevalence (%)",
+    y = "Age"
+  ) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("#F8766D", "#00BFC4", "#000000"),
+    labels = c("Male observed", "Female observed", "Model prediction"),
+    drop = FALSE
+  ) +
+  facet_grid(
+    rows = vars(education),
+    col = vars(bmi),
+    labeller = labeller(
+      education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"),
+      bmi = as_labeller(
+        x = c("[0,18.5)" = "BMI < 18.5", "[18.5,25)" = "18.5 <= {BMI < 25}", "[25,30)" = "25 <= {BMI < 30}", "[30,Inf)" = "30 <= BMI"),
+        default = label_parsed
+      )
+    )
+  )
+```
+<center>Figure 14</center>
+
+This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Population-Level-Prevalences.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+## External Validation
+
+The Public Health Monitor questionnaire was repeated in 2016 and we can use these data for external validation, as a way to assess the generalisability of the model. Given that our model is stratified by sex, level of education and age, many demographic variations will already be accounted for. The historical trend in the BMI distribution, which we analyse in the documents [_Historical-Trend-of-BMI.html_](./Historical-Trend-of-BMI.html), is not accounted for in this comparison but, given the short amount of time between the two surveys, this need not be a serious issue.
+
+[Figure (15)](#fig:Population-Level-Prevalences-2016) shows the resulting prevalences, stratified by sex, level of education and age. The discrepancies between the observed and modelled prevalences are larger than in [figure (14)](#fig:Population-Level-Prevalences), but the prediction shows good correspondence with the observed data.
+
+<a id="fig:Population-Level-Prevalences-2016"/>
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
+      y = age,
+      fill = factor(sex, levels = c("M", "F", "U"))
+    ),
+    data = observed.bmi.by.sex.education.and.age %>%
+      filter(year == 2016)
+  ) +
+  geom_point(
+    mapping = aes(
+      x = ifelse(sex == "M", -100 * prevalence, 100 * prevalence),
+      y = age
+    ),
+    data = model.bmi.by.sex.education.and.age %>%
+      filter(year == 2016),
+    size = 0.8
+  ) +
+  scale_x_continuous(
+    labels = abs,
+    breaks = seq(-60, 60, 30),
+    expand = c(0, 0)
+  ) +
+  scale_y_discrete(
+    labels = function(x){gsub("\\[(.*),(.*)\\)", "\\1-\\2", x)}
+  ) +
+  theme(axis.text.y = element_text(size = 7)) +
+  labs(
+    x = "Prevalence (%)",
+    y = "Age"
+  ) +
+  scale_fill_manual(
+    name = NULL,
+    values = c("#F8766D", "#00BFC4", "#000000"),
+    labels = c("Male observed", "Female observed", "Model prediction"),
+    drop = FALSE
+  ) +
+  facet_grid(
+    rows = vars(education),
+    col = vars(bmi),
+    labeller = labeller(
+      education = c("L" = "Low education", "M" = "Medium education", "H" = "High education"),
+      bmi = as_labeller(
+        x = c("[0,18.5)" = "BMI < 18.5", "[18.5,25)" = "18.5 <= {BMI < 25}", "[25,30)" = "25 <= {BMI < 30}", "[30,Inf)" = "30 <= BMI"),
+        default = label_parsed
+      )
+    )
+  )
+```
+<center>Figure 15</center>
+
+# Write Output
+
+Finally, we write the coefficients of our parametric model to a CSV file.
+
+```{r}
+write_csv(
+  x = bmi.parametric.coefficients,
+  file = "../Output-Data/Population-Level-Distribution-of-BMI.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

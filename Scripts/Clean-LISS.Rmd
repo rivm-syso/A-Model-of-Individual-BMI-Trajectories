@@ -1,0 +1,1106 @@
+---
+title: "Clean and Explore LISS Data"
+author: "Laurens Bogaardt"
+date: "2024-02-26"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+The purpose of this document is to clean and explore the data of the Longitudinal Internet studies for the Social Sciences (LISS). This panel is a representative sample of Dutch individuals who participate in monthly Internet surveys [@Scherpenzeel2010]. The panel is based on a true probability sample of households drawn from the population register. Households that could not otherwise participate are provided with a computer and Internet connection. A longitudinal survey is fielded in the panel every year, covering a large variety of domains including health, work, education, income, housing, time use, political views, values and personality.
+
+Before we begin, we need to load the packages _tidyverse_, _haven_, _ggforce_ and _vtable_ [@tidyverse2019; @haven2021; @ggforce2022; @vtable2021]. And we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+library(ggforce)
+library(vtable)
+set.seed(456)
+```
+
+# Load Input
+
+The LISS dataset consists of separate questionnaires about various topics. In this document, we will examine the background questionnaires and the health questionnaires.
+
+## Background Data
+
+Let's load the background datasets. These contain general information, such as sex and age, about the participants in the study. The following loops over the names of the files which we will load, extracting only the relevant columns. Throughout the document, we will limit the output in each step. This is because the LISS data are not open access. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+
+```{r}
+background.data <- map(
+  .x = c(
+    "avars_200711_EN_3.0p.sav",
+    "avars_200802_EN_3.0p.sav",
+    "avars_200811_EN_2.0p.sav",
+    "avars_200812_EN_2.0p.sav",
+    "avars_200911_EN_2.0p.sav",
+    "avars_200912_EN_2.0p.sav",
+    "avars_201011_EN_2.0p.sav",
+    "avars_201012_EN_2.0p.sav",
+    "avars_201111_EN_2.0p.sav",
+    "avars_201112_EN_2.0p.sav",
+    "avars_201211_EN_1.0p.sav",
+    "avars_201212_EN_1.0p.sav",
+    "avars_201311_EN_1.0p.sav",
+    "avars_201312_EN_1.0p.sav",
+    "avars_201507_EN_1.0p.sav",
+    "avars_201508_EN_1.0p.sav",
+    "avars_201611_EN_1.0p.sav",
+    "avars_201612_EN_1.0p.sav",
+    "avars_201711_EN_1.0p.sav",
+    "avars_201712_EN_1.0p.sav",
+    "avars_201811_EN_1.0p.sav",
+    "avars_201812_EN_1.0p.sav",
+    "avars_201911_EN_1.0p.sav",
+    "avars_201912_EN_1.0p.sav",
+    "avars_202011_EN_1.0p.sav",
+    "avars_202012_EN_1.0p.sav",
+    "avars_202111_EN_1.0p.sav",
+    "avars_202112_EN_1.1p.sav"
+  ),
+  .f = ~ read_sav(
+    file = paste0("../Input-Data/LISS/", .),
+    col_select = c("nomem_encr", "wave", "geslacht", "gebjaar", "oplcat", "leeftijd")
+  ) %>%
+    zap_labels() %>%
+    rename(
+      participant.id = "nomem_encr",
+      sex = "geslacht",
+      education = "oplcat",
+      year.of.birth = "gebjaar",
+      age = "leeftijd"
+    )
+) %>%
+  bind_rows()
+vtable(background.data, out = "return", missing = TRUE)
+```
+
+## Health Data
+
+Participants also filled in health questionnaires which includes information about their length and weight. The following loops over the names of the files we will load, extracting only the the relevant columns.
+
+```{r}
+health.data <- map(
+  .x = c(
+    "ch07a_2p_EN.sav",
+    "ch08b_EN_1.3p.sav",
+    "ch09c_EN_1.1p.sav",
+    "ch10d_EN_1.0p.sav",
+    "ch11e_EN_1.0p.sav",
+    "ch12f_EN_1.0p.sav",
+    "ch13g_EN_1.0p.sav",
+    "ch15h_EN_1.2p.sav",
+    "ch16i_EN_1.0p.sav",
+    "ch17j_EN_1.0p.sav",
+    "ch18k_EN_1.0p.sav",
+    "ch19l_EN_1.0p.sav",
+    "ch20m_EN_1.0p.sav",
+    "ch21n_EN_1.0p.sav"
+  ),
+  .f = ~ read_sav(
+    file = paste0("../Input-Data/LISS/", .),
+    col_select = ends_with(c("nomem_encr", "_m", "016", "017"))
+  ) %>%
+    zap_labels() %>%
+    rename(
+      participant.id = "nomem_encr",
+      wave = ends_with("_m"),
+      length = ends_with("016"),
+      weight = ends_with("017")
+    )
+) %>%
+  bind_rows()
+vtable(health.data, out = "return", missing = TRUE)
+```
+
+# Clean Background Data
+
+In this section, we will examine a few aspects of the background dataset. We will find that it contains some missing data and some data which are unusual. Before we fix these issues, let's first filter the data on the participants we actually care about, namely those who also filled in the health questionnaires. This automatically ensures that the variable _participant.id_ cannot be missing.
+
+```{r}
+background.data <- background.data %>%
+  inner_join(
+    health.data %>%
+      filter(!is.na(participant.id)) %>%
+      distinct(participant.id),
+    by = "participant.id"
+  )
+vtable(background.data, out = "return", missing = TRUE)
+```
+
+Let's check if the background data cover everyone who filled in the health questionnaire.
+
+```{r}
+health.data %>%
+  distinct(participant.id) %>%
+  setdiff(
+    background.data %>%
+      distinct(participant.id)
+  ) %>%
+  count()
+```
+
+It seems one participant will be missed when using the available background data, but this does not seem like a big issue.
+
+## Waves
+
+Let's check if the _wave_ is missing for any row in the dataset.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(wave)))
+```
+
+Each participant should only have one entry per wave. Let's check this.
+
+```{r}
+background.data %>%
+  count(participant.id, wave) %>%
+  summarise(duplicate = sum(n > 1))
+```
+
+## Sex
+
+Let's verify that there are only two sexes. We can immediately check if there are any missing values.
+
+```{r}
+background.data %>%
+  count(sex)
+```
+
+For our purpose, we want males encoded as a _M_ and females as a _F_. Let's change this.
+
+```{r}
+background.data <- background.data %>%
+  mutate(
+    sex = recode_factor(
+      sex,
+      "1" = "M",
+      "2" = "F"
+    )
+  )
+```
+
+Each participant should only have one value for _sex_ across all waves. Let's count how many times this goes wrong.
+
+```{r}
+background.data %>%
+  distinct(participant.id, sex) %>%
+  count(participant.id, name = "sexes") %>%
+  count(sexes)
+```
+
+Let's remove these participants from the data.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(sex) == 1) %>%
+  ungroup()
+```
+
+## Education
+
+Let's verify that there are only six levels of education. We can immediately check if there are any missing values.
+
+```{r}
+background.data %>%
+  count(education)
+```
+
+Let's now check whether any participant is missing all entries for their level of education.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  summarise(
+    missing = all(is.na(education)),
+    .groups = "drop"
+  ) %>%
+  count(missing)
+```
+
+We will remove these participants from the dataset.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(!all(is.na(education))) %>%
+  ungroup()
+```
+
+Each participant should only have one level of education across all waves, but it's possible that some participants increase their level of education as they age. Let's check, for each participant, whether their highest reached level of education does not go down over time.
+
+```{r}
+background.data %>%
+  group_by(participant.id) %>%
+  arrange(wave) %>%
+  summarise(
+    unsorted = is.unsorted(education, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  count(unsorted)
+```
+
+We will remove participants with an unsorted level of education from the dataset.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  arrange(wave) %>%
+  filter(!is.unsorted(education, na.rm = TRUE)) %>%
+  ungroup()
+```
+
+Participants with an increasing level of education or with missing values will be assigned the last available entry as the one representing their true level of education. Although this imputation is not perfect, it is a simple solution which distorts the data as little as possible.
+
+```{r}
+background.data <- background.data %>%
+  arrange(participant.id, wave) %>%
+  group_by(participant.id) %>%
+  mutate(education = last(na.omit(education))) %>%
+  ungroup()
+```
+
+The LISS dataset measures education using six categories, while we are only interested in a three level scoring, so let's recode the variable. Education will then be measured as the highest level reached where the lowest level, encoded by _L_, applies to people with intermediate secondary education or less, the medium level, encoded by _M_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _H_, includes higher vocational education and university.
+
+```{r}
+background.data <- background.data %>%
+  mutate(
+    education = recode_factor(
+      education,
+      "1" = "L",
+      "2" = "L",
+      "3" = "M",
+      "4" = "M",
+      "5" = "H",
+      "6" = "H",
+      .ordered = TRUE
+    )
+  )
+```
+
+## Year of Birth
+
+Let's check if there are any participants who are missing their year of birth.
+
+```{r}
+background.data %>%
+  summarise(missing = sum(is.na(year.of.birth)))
+```
+
+Each participant should only have one year of birth across all waves. Let's count how many times this goes wrong.
+
+```{r}
+background.data %>%
+  distinct(participant.id, year.of.birth) %>%
+  count(participant.id) %>%
+  summarise(nonunique = sum(n > 1))
+```
+
+Let's remove all participants with an ambiguous year of birth.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(n_distinct(year.of.birth) == 1) %>%
+  ungroup()
+```
+
+## Age
+
+Let's check if there are any participants who have a missing value for their age. We immediately check if there are any minors in the data.
+
+```{r}
+background.data %>%
+  summarise(
+    missing = sum(is.na(age)),
+    minor = sum(age < 18)
+  )
+```
+
+We will keep only the adults in the dataset, but filtering the background data on specific waves will cause problems when combining the background data with the health data, so we remove the rows for minors later.
+
+The year of birth and the age of the participant are related and should match. Although we do not know the precise date of birth of each participant, a range for the plausible age of a participant can be constructed and compared with the stated age.
+
+```{r}
+background.data %>%
+  mutate(
+    min.age = floor(wave / 100 - year.of.birth) - 1,
+    max.age = floor(wave / 100 - year.of.birth)
+  ) %>%
+  group_by(participant.id) %>%
+  summarise(
+    mismatch = any(age < min.age | age > max.age),
+    .groups = "drop"
+  ) %>%
+  count(mismatch)
+```
+
+Let's remove all participants with inconsistencies with their age and year of birth. The variable _year.of.birth_ is now no longer needed, so it is removed from the dataset.
+
+```{r}
+background.data <- background.data %>%
+  group_by(participant.id) %>%
+  filter(
+    all(age >= floor(wave / 100 - year.of.birth) - 1),
+    all(age <= floor(wave / 100 - year.of.birth))
+  ) %>%
+  ungroup() %>%
+  select(-year.of.birth)
+```
+
+The dataset contains values for the age of the participants which are rounded down to the nearest year. A simple solution to be able to interpret their age as the time since birth is to add half a year to these values.
+
+```{r}
+background.data <- background.data %>%
+  mutate(
+    age = age + 0.5
+  )
+```
+
+# Combine with Health Data
+
+The background questionnaires and the health questionnaires were loaded as separate datasets. We need to combine these to form a single dataset.
+
+## Clean Keys
+
+The datasets will be joined on the keys _participant.id_ and _wave_, so we need to verify that the health dataset has no missing values for either these variables, nor duplicate waves.
+
+```{r}
+health.data %>%
+  summarise(
+    missing.participant.id = sum(is.na(participant.id)),
+    missing.wave = sum(is.na(wave)),
+    duplicate = n() - n_distinct(participant.id, wave)
+  )
+```
+
+The health data contains participants who we have just removed from the background data during the cleaning process. These should also be removed from the health data.
+
+```{r}
+health.data <- health.data %>%
+  inner_join(
+    background.data %>%
+      distinct(participant.id),
+    by = "participant.id"
+  )
+vtable(health.data, out = "return", missing = TRUE)
+```
+
+## Join Datasets
+
+Although the participants in both the background data and the health data are the same, there may be waves in the health data for which we do not have any background data of specific participants. Let's count for how many participants this occurs.
+
+```{r}
+health.data %>%
+  select(participant.id, wave) %>%
+  setdiff(
+    background.data %>%
+      select(participant.id, wave)
+  ) %>%
+  distinct(participant.id) %>%
+  count()
+```
+
+If we join the datasets on the _participant.id_ and _wave_ using an inner-join, these rows will be removed from the data. We could attempt to impute the missing values from the information we have from other waves, but given that it applies to only a small number of participants, removing them from the data is not a big issue.
+
+```{r}
+liss.data <- background.data %>%
+  inner_join(
+    health.data,
+    by = c("participant.id", "wave")
+  ) %>%
+  arrange(participant.id, wave)
+```
+
+## Clean Waves
+
+The column _wave_ is a concatenation of the year and the month the questionnaire was administered. Let's create a new variable indicating the date on which the questionnaire took place by assuming all waves were administered on the 15th of the month.
+
+```{r}
+liss.data <- liss.data %>%
+  mutate(date = as.Date(paste0(substr(wave, 1, 4), "-", substr(wave, 5, 6), "-15")))
+```
+
+We can check how many health questionnaires the participants filled in per year.
+
+```{r}
+liss.data %>%
+  count(year = year(date), participant.id) %>%
+  count(year, n, name = "participants")
+```
+
+This can also be visualised in a plot. As seen, the questionnaires were administered in two different months each wave. Most of the time, the year belonging to these paired months is the same. The exception is in 2007 and 2008. The round of February 2008 can be considered part of the wave of 2007. The frequency of the questionnaire was approximately one year, except between 2013 and 2016, when there was a gap, meaning the year 2014 was skipped.
+
+```{r}
+ggplot() +
+  geom_segment(
+    mapping = aes(
+      x = date,
+      xend = date,
+      y = 0,
+      yend = 1,
+      color = factor(year(date))
+    ),
+    data = liss.data %>%
+      distinct(wave, date)
+  ) +
+  labs(
+    x = "Date",
+    colour = "Year"
+  ) +
+  scale_x_date(
+    date_breaks = "1 year",
+    date_labels = "%Y"
+  ) +
+  theme(
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank()
+  )
+```
+
+Let's now verify that the participants filled in only one health questionnaire per year, if we consider the round of February 2008 part of the wave of 2007.
+
+```{r}
+liss.data %>%
+  mutate(year = if_else(wave == 200802, 2007, year(date))) %>%
+  count(year, participant.id) %>%
+  count(year, n, name = "participants")
+```
+
+Let's change the year of the wave of February 2008 to be 2007 and let's recode _wave_ to number the waves consecutively, taking into account that 2014 is skipped.
+
+```{r}
+liss.data <- liss.data %>%
+  mutate(
+    wave = recode(
+      if_else(wave == 200802, 2007, year(date)),
+      `2007` = 1,
+      `2008` = 2,
+      `2009` = 3,
+      `2010` = 4,
+      `2011` = 5,
+      `2012` = 6,
+      `2013` = 7,
+      `2015` = 8,
+      `2016` = 9,
+      `2017` = 10,
+      `2018` = 11,
+      `2019` = 12,
+      `2020` = 13,
+      `2021` = 14
+    )
+  )
+```
+
+## Clean Minors
+
+Now that the background data have been combined with the health data, we can filter out specific rows from the data applying to minors.
+
+```{r}
+liss.data <- liss.data %>%
+  filter(age >= 18)
+```
+
+# Clean Health Data
+
+In this section, we will examine the columns _length_ and _weight_ from the health questionnaire and construct the new variable _bmi_.
+
+## Length
+
+Let's now check whether any participant is missing all entries for their length.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  summarise(
+    missing = all(is.na(length)),
+    .groups = "drop"
+  ) %>%
+  count(missing)
+```
+
+We will remove these participants from the dataset.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(!all(is.na(length))) %>%
+  ungroup()
+```
+
+Let's now check whether any participant is missing any entry for their length.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  summarise(
+    missing = any(!is.na(length)) && any(is.na(length)),
+    .groups = "drop"
+  ) %>%
+  count(missing)
+```
+
+We can impute the mean length for those waves.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  mutate(
+    length = case_when(
+      any(!is.na(length)) && any(is.na(length)) ~ mean(length, na.rm = TRUE),
+      TRUE ~ length
+    )
+  ) %>%
+  ungroup()
+```
+
+Let's check how many participants have an unrealistically high or low length.
+
+```{r}
+liss.data %>%
+  filter(!is.na(length)) %>%
+  group_by(participant.id) %>%
+  summarise(
+    below = any(length < 140),
+    above = any(length > 220),
+    .groups = "drop"
+  ) %>%
+  summarise(
+    below = sum(below),
+    above = sum(above)
+  )
+```
+
+Given that the LISS data are self-reported, errors in filling out the questionnaire may occur. So let's remove all participants with an unrealistic length.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(
+    length >= 140,
+    length <= 220
+  ) %>%
+  ungroup()
+```
+
+Let's check how many participants have large differences in their length over time.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  filter(
+    sum(!is.na(length)) >= 2
+  ) %>%
+  summarise(
+    large.difference = diff(range(length, na.rm = TRUE)) > 8,
+    .groups = "drop"
+  ) %>%
+  count(large.difference)
+```
+
+Let's remove the participants with an unrealistically large difference in their length over time.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(sum(!is.na(length)) < 2 | diff(range(length, na.rm = TRUE)) <= 8) %>%
+  ungroup()
+```
+
+## Weight
+
+Let's now check whether any participant is missing all entries for their weight.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  summarise(
+    missing = all(is.na(weight)),
+    .groups = "drop"
+  ) %>%
+  count(missing)
+```
+
+We will remove these participants from the dataset.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(!all(is.na(weight))) %>%
+  ungroup()
+```
+
+Let's now check whether any participant is missing any entry for their weight.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  summarise(
+    missing = any(!is.na(weight)) && any(is.na(weight)),
+    .groups = "drop"
+  ) %>%
+  count(missing)
+```
+
+It is nearly impossible to impute reasonable values for these entries, so we will remove these waves from the dataset.
+
+```{r}
+liss.data <- liss.data %>%
+  filter(any(!is.na(weight)) && any(is.na(weight)))
+```
+
+Let's check how many participants have an unrealistically high or low weight.
+
+```{r}
+liss.data %>%
+  filter(!is.na(weight)) %>%
+  group_by(participant.id) %>%
+  summarise(
+    below = any(weight < 40),
+    above = any(weight > 200),
+    .groups = "drop"
+  ) %>%
+  summarise(
+    below = sum(below),
+    above = sum(above)
+  )
+```
+
+Given that the LISS data are self-reported, errors in filling out the questionnaire may occur. So let's remove all participants with an unrealistic weight.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(
+    weight >= 40,
+    weight <= 200
+  ) %>%
+  ungroup()
+```
+
+Let's check how many participants have very large differences in their weight over time.
+
+```{r}
+liss.data %>%
+  group_by(participant.id) %>%
+  filter(
+    sum(!is.na(weight)) >= 2
+  ) %>%
+  summarise(
+    large.difference = diff(range(weight, na.rm = TRUE)) > 80,
+    .groups = "drop"
+  ) %>%
+  count(large.difference)
+```
+
+Let's remove the participants with an unrealistically large difference in their weight over time.
+
+```{r}
+liss.data <- liss.data %>%
+  group_by(participant.id) %>%
+  filter(sum(!is.na(weight)) < 2 | diff(range(weight, na.rm = TRUE)) <= 80) %>%
+  ungroup()
+```
+
+## BMI
+
+We can construct the new variable _bmi_ from _length_ and _weight_. These latter two variables may be removed from the dataset, as they are no longer needed.
+
+```{r}
+liss.data <- liss.data %>%
+  mutate(bmi = weight / (length / 100) ^ 2) %>%
+  select(-length, -weight)
+```
+
+In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data.
+
+```{r}
+liss.data %>%
+  summarise(
+    below = sum(bmi < 14),
+    above = sum(bmi > 50),
+    min.bmi = min(bmi),
+    max.bmi = max(bmi)
+  )
+```
+
+Let's remove these outliers from our data.
+
+```{r}
+liss.data <- liss.data %>%
+  filter(
+    bmi >= 14,
+    bmi <= 50
+  )
+```
+
+## Order Rows and Columns
+
+As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
+
+```{r}
+liss.data <- liss.data %>%
+  select(participant.id, sex, education, wave, date, age, bmi) %>%
+  arrange(participant.id, wave)
+```
+
+# Explore Data
+
+We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
+
+```{r}
+vtable(liss.data, out = "return", missing = TRUE)
+```
+
+## Participation
+
+Let's see how many participants we have per wave.
+
+```{r}
+liss.participants.by.wave <- liss.data %>%
+  group_by(wave) %>%
+  count(wave)
+liss.participants.by.wave
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(wave),
+      y = n,
+      fill = factor(wave)
+    ),
+    data = liss.participants.by.wave,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Wave",
+    y = "Number of participants"
+  )
+```
+
+We can also count how many participants participated in all of the waves and how many in fewer.
+
+```{r}
+liss.number.of.waves <- liss.data %>%
+  count(participant.id, name = "waves") %>%
+  count(waves)
+liss.number.of.waves
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(waves),
+      y = n,
+      fill = factor(waves)
+    ),
+    data = liss.number.of.waves,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Waves",
+    y = "Number participated"
+  )
+```
+
+For all participants, we can note whether they participated in a wave or not. If not, the participant was either new and had never previously participated or had done so in the past and stopped participating. This can be used to see at what rate participants enter or leave the panel, between each wave.
+
+```{r}
+stratum.per.participant.per.wave <- liss.data %>%
+  expand(participant.id, wave) %>%
+  left_join(
+    liss.data %>%
+      select(participant.id, wave) %>%
+      mutate(stratum = TRUE),
+    by = c("participant.id", "wave")
+  ) %>%
+  arrange(participant.id, wave) %>%
+  group_by(participant.id) %>%
+  mutate(
+    stratum = case_when(
+      is.na(stratum) & cumsum(!is.na(stratum)) == 0 ~ "New",
+      is.na(stratum) & cumsum(!is.na(stratum)) > 0 ~ "Out",
+      stratum ~ "In"
+    ),
+    stratum = factor(stratum, levels = c("New", "In", "Out"))
+  ) %>%
+  ungroup()
+vtable(stratum.per.participant.per.wave, out = "return", missing = TRUE)
+```
+
+These data can be visualised, showing the transitions in and out of the panel over time.
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = factor(wave),
+    id = participant.id,
+    split = stratum,
+    value = 1,
+    fill = stratum
+  ),
+  data = stratum.per.participant.per.wave
+) +
+  geom_parallel_sets(
+    fill = "grey",
+    alpha = 0.5
+  ) +
+  geom_parallel_sets_axes(axis.width = 0.4) +
+  labs(
+    x = "Wave",
+    fill = ""
+  ) +
+  theme_void() +
+  theme(
+    axis.title.x = element_text(margin = margin(t = 4)),
+    axis.text.x = element_text(margin = margin(t = -12))
+  )
+```
+
+## Sex
+
+Let's check, per wave, what the number and percentages of males and females is.
+
+```{r}
+liss.prevalence.by.wave.and.sex <- liss.data %>%
+  count(wave, sex) %>%
+  group_by(wave) %>%
+  mutate(
+    prevalence = n / sum(n)
+  ) %>%
+  ungroup()
+liss.prevalence.by.wave.and.sex
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(wave),
+      y = prevalence,
+      fill = sex
+    ),
+    data = liss.prevalence.by.wave.and.sex
+  ) +
+  labs(
+    x = "Wave",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Sex",
+    label = c("M" = "Male", "F" = "Female")
+  )
+```
+
+## Education
+
+Let's check, per wave, what the number and percentages of each of the three levels of education is.
+
+```{r}
+liss.prevalence.by.wave.and.education <- liss.data %>%
+  count(wave, education) %>%
+  group_by(wave) %>%
+  mutate(
+    prevalence = n / sum(n)
+  ) %>%
+  ungroup()
+liss.prevalence.by.wave.and.education
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(wave),
+      y = prevalence,
+      fill = education
+    ),
+    data = liss.prevalence.by.wave.and.education
+  ) +
+  labs(
+    x = "Wave",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  )
+```
+
+## Age
+
+Let's check, per wave, what the minimum, mean and maximum age is.
+
+```{r}
+liss.data %>%
+  group_by(wave) %>%
+  summarise(
+    min.age = min(age),
+    mean.age = mean(age),
+    max.age = max(age),
+    .groups = "drop"
+  )
+```
+
+We can visualise the age distribution in a boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = factor(wave),
+      y = age,
+      fill = factor(wave)
+    ),
+    data = liss.data,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Wave",
+    y = "Age"
+  )
+```
+
+We can also visualise the probability density of the age distribution by wave.
+
+```{r}
+ggplot() + 
+  geom_density(
+    mapping = aes(
+      x = age,
+      col = factor(wave)
+    ),
+    data = liss.data
+  ) +
+  labs(
+    x = "Age",
+    y = "Probability density",
+    col = "Wave"
+  )
+```
+
+## BMI
+
+Let's check, per wave, what the minimum, mean and maximum BMI value is.
+
+```{r}
+liss.data %>%
+  group_by(wave) %>%
+  summarise(
+    min.bmi = min(bmi),
+    mean.bmi = mean(bmi),
+    max.bmi = max(bmi),
+    .groups = "drop"
+  )
+```
+
+We can visualise the BMI distribution in a boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = factor(wave),
+      y = bmi,
+      fill = factor(wave)
+    ),
+    data = liss.data,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Wave",
+    y = "BMI"
+  )
+```
+
+We can also visualise the probability density of the BMI distribution by wave.
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = bmi,
+      colour = factor(wave)
+    ),
+    data = liss.data %>%
+      filter(wave %% 2 == 1)
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    col = "Wave"
+  )
+```
+
+Additionally, we can sample a few participants and visualise their BMI trajectory over the 14 waves. Note that we add a small amount of random noise to these trajectories. This is because the LISS data are not open access. To request access to the data, please visit [www.lissdata.nl](https://www.lissdata.nl).
+
+```{r}
+ggplot(
+  mapping = aes(
+    x = wave,
+    y = bmi,
+    col = factor(participant.id)
+  ),
+  data = liss.data %>%
+    group_by(participant.id) %>%
+    filter(n() == 14) %>%
+    nest() %>%
+    ungroup() %>%
+    slice_sample(n = 15) %>%
+    mutate(participant.id = seq(n())) %>%
+    unnest(data) %>%
+    mutate(bmi = bmi + rnorm(n(), 0, 0.5))
+) +
+  geom_line() +
+  geom_point() +
+  labs(
+    x = "Wave",
+    y = "BMI",
+    col = "Participant"
+  )
+```
+
+# Write Output
+
+Finally, we write the cleaned data for the LISS panel to a CSV file.
+
+```{r}
+write_csv(
+  x = liss.data,
+  file = "../Output-Data/LISS.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

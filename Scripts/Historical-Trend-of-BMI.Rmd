@@ -1,0 +1,345 @@
+---
+title: "Historical Trend of BMI"
+author: "Laurens Bogaardt"
+date: "2024-02-26"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+In this series of documents, we create a risk factor model of BMI for micro-simulations which is able to faithfully describe the population level distribution, stratified by sex, level of education and age. It can also predict future trends in obesity as well as produce unique life course trajectories for individuals which seem plausible, but it does not capture extreme fluctuations, such as rapid weight loss. It is fit on the adult population of the Netherlands with the purpose of facilitating simulations concerning government policy with regard to obesity [@TenDam2023].
+
+This document analyses the historical trend of BMI of the adult population of the Netherlands. Other documents include [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html) which analyses the population level distribution of BMI, [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) which analyses the individual trajectories of BMI, [_Generalised-Autoregressive-Model.html_](./Generalised-Autoregressive-Model.html) which describes several functions related to the generalised autoregressive model we use, [_Clean-Gezondheidsmonitor.html_](./Clean-Gezondheidsmonitor.html) which cleans and explores the population level dataset, [_Clean-VZinfo.html_](./Clean-VZinfo.html) which cleans and explores the historical dataset, [_Clean-Doetinchem.html_](./Clean-Doetinchem.html) which cleans and explores one of the two longitudinal datasets and [_Clean-LISS.html_](./Clean-LISS.html) which cleans and explores the other longitudinal dataset.
+
+Before we begin, we need to load the packages _gamlss.dist_ and _tidyverse_ [@Rigby2005; @tidyverse2019]. And we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(gamlss.dist)
+library(tidyverse)
+set.seed(456)
+```
+
+# Load Data
+
+Historical data related to BMI were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography. The dataset loaded here is a cleaned version, which was processed in the document [_Clean-VZinfo.html_](./Clean-VZinfo.html), where the data are also explored in more detail.
+
+```{r}
+bmi.by.year.and.sex <- read_csv(
+  file = "../Output-Data/VZinfo.csv",
+  col_types = cols(
+    year = col_integer(),
+    sex = col_factor(levels = c("M", "F")),
+    bmi = col_factor(levels = c("[25,30)", "[30,Inf)")),
+    prevalence = col_double()
+  )
+)
+bmi.by.year.and.sex
+```
+
+In the analysis below, we will also need the $\nu$ and $\tau$ parameters which were previously estimated in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html).
+
+```{r}
+bmi.parameters.by.sex <- read_csv(
+  file = "../Output-Data/Population-Level-Distribution-of-BMI.csv",
+  col_types = cols_only(
+    sex = col_factor(levels = c("M", "F")),
+    nu = col_double(),
+    tau = col_double()
+  )
+)
+bmi.parameters.by.sex
+```
+
+# Analysis
+
+Previous work has suggested that the trend in overweight and obesity is due to an increase in the spread and skewness of the BMI distribution, rather than solely a change in the mean [@Penman2006; @Majer2013; @Yamada2020]. Therefore, a linear trend is added to the $\mu$ and $\sigma$ parameters which describe the population level distribution previously estimated in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html). This addition can be seen in [equation (1)](#eq:Population-Level-Distribution-Parameters). We will use historical data from the Netherlands to estimate the values of the corresponding $\mu_{year}$ and $\sigma_{year}$ coefficients, keeping the other coefficients fixed.
+
+<a id="eq:Population-Level-Distribution-Parameters"/>
+\begin{equation}
+\tag{1}
+\begin{array}{@{\ }rcl@{\ }}
+\mu & = & \mu_{education} \, + \, \mu_{age} \, \times \, age \, + \, \mu_{age^2} \, \times \, age^2 \, + \, \mu_{year} \, \times \, year\\
+\sigma & = & \sigma_{education} \, + \, \sigma_{age} \, \times \, age \, + \, \sigma_{age^2} \, \times \, age^2 \, + \, \sigma_{year} \, \times \, year\\
+\nu & = & \nu_{intercept}\\
+\tau & = & \tau_{intercept}
+\end{array}
+\end{equation}
+
+To estimate the $\mu_{year}$ and $\sigma_{year}$ coefficients which determine the historical trend, we first realise that, if we keep $\nu$ and $\tau$ constant, particular values for $\mu$ and $\sigma$ imply prevalences of overweight and of obesity. Likewise, these prevalences imply values for $\mu$ and $\sigma$. So, from the historical prevalences of overweight and obesity in the Netherlands, we can determine how the $\mu$ and $\sigma$ parameter must have changed over time. Subsequently, we perform a linear regression through these values to estimate the $\mu_{year}$ and $\sigma_{year}$ coefficients which best fit the historical data. These coefficients are estimated for males and females separately and are expressed as the change in $\mu$ and $\sigma$ per year relative to 15 October 2012. This date is chosen because it lies in the middle of the period in which the population level data were gathered. No dependency on the level of education nor on age is included.
+
+Let's start by joining the data related to the prevalences of overweight and obesity to the $\nu$ and $\tau$ parameters.
+
+```{r}
+bmi.and.bmi.parameters.by.year.and.sex <- bmi.by.year.and.sex %>%
+  pivot_wider(
+    names_from = bmi,
+    values_from = prevalence
+  ) %>%
+  left_join(
+    bmi.parameters.by.sex,
+    by = "sex"
+  )
+bmi.and.bmi.parameters.by.year.and.sex
+```
+
+We can now find the values for $\mu$ and $\sigma$ which correspond to the observed prevalences, keeping the $\nu$ and $\tau$ parameters fixed. Given that, for each year and sex, there are two unknowns and two data points, this calculation should give an exact result. An easy method to obtain this result is to minimise the squared difference between the observed prevalences and those implied by certain values for $\mu$ and $\sigma$.
+
+```{r}
+optimisation.result.by.year.and.sex <- bmi.and.bmi.parameters.by.year.and.sex %>%
+  group_by(year, sex) %>%
+  summarise(
+    optim(
+      par = list(24, 1),
+      fn = function(parameters) {
+        mu <- parameters[[1]]
+        sigma <- exp(parameters[[2]])
+        result <- (1 - pSHASHo2(30, mu, sigma, nu, tau) - `[30,Inf)`) ^ 2 +
+          (pSHASHo2(30, mu, sigma, nu, tau) - pSHASHo2(25, mu, sigma, nu, tau) - `[25,30)`) ^ 2
+        return(result)
+      }
+    ) %>%
+      unlist() %>%
+      as_tibble_row(),
+    .groups = "drop"
+  )
+optimisation.result.by.year.and.sex
+```
+
+Let's verify that this optimisation has converged for all combinations of year and sex, and that the estimated parameters are not missing.
+
+```{r}
+optimisation.result.by.year.and.sex %>%
+  summarise(
+    number.of.na = sum(is.na(par1)) + sum(is.na(par2)), 
+    max.value = max(value, na.rm = TRUE), 
+    max.iter = max(counts.function),
+    number.not.converged = sum(convergence != 0)
+  )
+```
+
+We can now simplify the optimisation results to obtain the implied values for $\mu$ and $\sigma$ by year and sex.
+
+```{r}
+implied.bmi.parameters.by.year.and.sex <- optimisation.result.by.year.and.sex %>%
+  mutate(
+    mu  = par1,
+    sigma = exp(par2)
+  ) %>%
+  select(year, sex, mu, sigma)
+implied.bmi.parameters.by.year.and.sex
+```
+
+[Figure (1)](#fig:BMI-Prevalences-by-Year) plots these values by year and sex to get a feeling for the trends.
+
+<a id="fig:BMI-Prevalences-by-Year"/>
+```{r}
+ggplot(
+  mapping = aes(
+    x = year,
+    y = value,
+    col = factor(sex)
+  ),
+  data = implied.bmi.parameters.by.year.and.sex %>%
+    pivot_longer(c(mu, sigma))
+) +
+  geom_point() +
+  geom_smooth(
+    method = "lm",
+    formula = y ~ x
+  ) +
+  labs(
+    x = "Year",
+    y = "Parameter value"
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("M" = "Male", "F" = "Female")
+  ) +
+  facet_wrap(
+    facets = ~ name,
+    scales = "free",
+    labeller = label_parsed
+  )
+```
+<center>Figure 1</center>
+
+Indeed, these values look approximately linear for the observed time period. We can easily extract the intercept- and slope coefficients using a linear regression.
+
+```{r}
+estimated.bmi.trend.parameters.by.sex <- implied.bmi.parameters.by.year.and.sex %>%
+  pivot_longer(c(mu, sigma)) %>%
+  group_by(sex, name) %>%
+  summarise(
+    lm(value ~ 1 + I(year - 2012)) %>%
+      coef() %>%
+      as_tibble_row(),
+    .groups = "drop"
+  ) %>%
+  rename(
+    intercept = `(Intercept)`,
+    year = `I(year - 2012)`
+  ) %>%
+  pivot_wider(
+    values_from = c(intercept, year),
+    names_glue = "{name}.{.value}"
+  )
+estimated.bmi.trend.parameters.by.sex
+```
+
+# Internal Validation
+
+A linear trend such as in [equation (1)](#eq:Population-Level-Distribution-Parameters) has limitations. For one, we are ignoring any interaction with the level of education or with age. The analysis in the document [_Individual-Trajectories-of-BMI.html_](./Individual-Trajectories-of-BMI.html) indicates that this is a reasonable simplification for the level of education but that an interaction with age might be desirable. Such a more flexible model may fit the data better but the interpretation of the interaction would remain an issue. As participants with different ages also have a different year of birth, it is difficult to distinguish effects due to age from effects due to cohort. It may well be that part of the observed age-dependency is due to prevailing culture at the time the participant grew up, rather than solely a biological effect of age. Nonetheless, we make the assumption that the observed age-dependency, which was analysed previously in the document [_Population-Level-Distribution-of-BMI.html_](./Population-Level-Distribution-of-BMI.html), is not due to cohort effects but only due to biological effects of age. Consequently, the time trends analysed here are assumed to only be due to the period the participants are living in and its instantaneous influence on their lifestyle choices.
+
+Another important limitation of a linear trend is that it predicts unrealistically low BMI values in the distant past and an ever increasing prevalence of overweight and obesity in the future. The ideal way to operationalise such a time effect would be to fit a sigmoidal function which asymptotically levels off to fixed values in both the distant past and the distant future. Due to limited data and our inherent ignorance of the future, however, a linear trend was fit. This entails that our model can only be valid for some time range around 2012, say, between 1980 and 2040. Let's validate this by creating a plot. We begin by determining the predicted values for $\mu$ and $\sigma$ over the period 1980 to 2040.
+
+```{r}
+estimated.bmi.parameters.by.sex.and.year <- estimated.bmi.trend.parameters.by.sex %>%
+  expand_grid(
+    year = seq(1980, 2040)
+  ) %>%
+  mutate(
+    mu = mu.intercept + mu.year * (year - 2012),
+    sigma = sigma.intercept + sigma.year * (year - 2012)
+  ) %>%
+  select(year, sex, mu, sigma) %>%
+  left_join(
+    bmi.parameters.by.sex,
+    by = "sex"
+  )
+estimated.bmi.parameters.by.sex.and.year
+```
+
+This table is used to determine the predicted prevalences of overweight and obesity, by year and sex.
+
+```{r}
+estimated.bmi.by.sex.and.year <- estimated.bmi.parameters.by.sex.and.year %>%
+  mutate(
+    `[25,30)` = pSHASHo2(30, mu, sigma, nu, tau) - pSHASHo2(25, mu, sigma, nu, tau),
+    `[30,Inf)` = 1 - pSHASHo2(30, mu, sigma, nu, tau)
+  ) %>%
+  select(year, sex, `[25,30)`, `[30,Inf)`) %>%
+  pivot_longer(
+    cols = c(`[25,30)`, `[30,Inf)`),
+    names_to = "bmi",
+    values_to = "prevalence"
+  )
+estimated.bmi.by.sex.and.year
+```
+
+[Figure (2)](#fig:Historical-Trend) compares the observed and predicted prevalences of overweight and obesity, including extrapolations between 1980 and 2040. Remember that we average over demography, which is kept constant at the 2021 level. Only the $\mu$ and $\sigma$ parameter are changed as a result of the historical trend coefficients. The predicted trends show good correspondence with the observed data.
+
+<a id="fig:Historical-Trend"/>
+```{r}
+ggplot() +
+  geom_point(
+    mapping = aes(
+      x = year,
+      y = 100 * prevalence,
+      col = sex,
+      shape = bmi
+    ),
+    data = bmi.by.year.and.sex
+  ) +
+  geom_line(
+    mapping = aes(
+      x = year,
+      y = 100 * prevalence,
+      col = sex,
+      linetype = bmi
+    ),
+    data = estimated.bmi.by.sex.and.year
+  ) +
+  labs(
+    x = "Year",
+    y = "Prevalence (%)"
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("M" = "Male", "F" = "Female")
+  ) +
+  scale_shape_discrete(
+    name = "Observed",
+    labels = c(expression(25 <= {BMI < 30}), expression(30 <= BMI))
+  ) +
+  scale_linetype_discrete(
+    name = "Modelled",
+    labels = c(expression(25 <= {BMI < 30}), expression(30 <= BMI))
+  ) +
+  expand_limits(y = 0) +
+  theme(legend.text.align = 0)
+```
+<center>Figure 2</center>
+
+Note that, although a linear trend is added to the $\mu$ and $\sigma$ parameters, this need not imply that the prevalences of overweight and obesity follow a straight line. This figure is saved for use in the article.
+
+```{r}
+ggsave(
+  file = "../Figures/Historical-Trend.pdf",
+  width = 260,
+  height = 130,
+  units = "mm"
+)
+```
+
+Let's also create a plot of the resulting BMI distribution by year and sex. As previously mentioned, the trend in overweight and obesity is, in part, due to an increase in the spread of the BMI distribution, which can clearly be seen in [figure (3)](#fig:BMI-Distribution-by-Year).
+
+<a id="fig:BMI-Distribution-by-Year"/>
+```{r}
+ggplot() +
+  geom_line(
+    mapping = aes(
+      x = x,
+      y = y,
+      col = sex,
+      linetype = factor(year)
+    ),
+    data = estimated.bmi.parameters.by.sex.and.year %>%
+      filter(year %in% seq(1990, 2020, 10)) %>%
+      group_by(year, sex) %>%
+      reframe(
+        x = seq(15, 45, 0.1),
+        y = dSHASHo2(x, mu, sigma, nu, tau)
+      )
+  ) +
+  scale_color_discrete(
+    name = "Sex",
+    labels = c("M" = "Male", "F" = "Female")
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    linetype = "Year"
+  )
+```
+<center>Figure 3</center>
+
+# Write Output
+
+Finally, we write the coefficients of our $\mu$ and $\sigma$ trend to a CSV file.
+
+```{r}
+write_csv(
+  x = estimated.bmi.trend.parameters.by.sex %>%
+    select(sex, mu.year, sigma.year),
+  file = "../Output-Data/Historical-Trend-of-BMI.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

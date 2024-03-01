@@ -1,0 +1,7 @@
+Input-Data/Gezondheidsmonitor/*.sav
+Input-Data/Doetinchem/*.sas7bdat
+Input-Data/LISS/*.sav
+Output-Data/Gezondheidsmonitor.csv
+Output-Data/Doetinchem.csv
+Output-Data/LISS.csv
+*.synctex.gz

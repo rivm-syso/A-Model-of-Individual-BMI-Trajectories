@@ -1,0 +1,122 @@
+---
+title: "Clean and Explore VZinfo Data"
+author: "Laurens Bogaardt"
+date: "2024-02-26"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+The purpose of this document is to clean and explore the historical BMI data of VZinfo. These data were assessed by Statistics Netherlands and the National Institute for Public Health and the Environment [@CBS2021]. We use the prevalences of overweight and obesity for adults between 1990 and 2021 which were standardised to the demography of the Netherlands in 2021 [@VZinfo2021]. Due to this standardisation step, any trend we extract from these data will mostly be indicative of changes in lifestyle and its influence on BMI rather than also including trends in demography.
+
+Before we begin, we need to load the package _tidyverse_ [@tidyverse2019]. And we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+set.seed(456)
+```
+
+# Load Input
+
+The historical BMI data of VZinfo come in two separate datasets containing the prevalences of overweight and of obesity over time. Let's first load the dataset containing the prevalences of total overweight (values of $25 kg/m^2$ and above) over time which contains one column indicating the year, another for the prevalences of males and one more for the prevalences of females.
+
+```{r}
+prevalence.of.overweight.by.year.and.sex <- read_delim(
+  file = "../Input-Data/VZinfo/trend-volwassenen-met-ov.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "mannen gestand.*" = col_double(),
+    "vrouwen gestand.*" = col_double()
+  )
+)
+prevalence.of.overweight.by.year.and.sex
+```
+
+Let's now load the dataset containing the prevalences of obesity (values of $30 kg/m^2$ and above) over time.
+
+```{r}
+prevalence.of.obesity.by.year.and.sex <- read_delim(
+  file = "../Input-Data/VZinfo/trend-volwassenen-met-ob.csv",
+  delim = ";",
+  col_types = cols_only(
+    "Category" = col_integer(),
+    "mannen gestand.*" = col_double(),
+    "vrouwen gestand.*" = col_double()
+  )
+)
+prevalence.of.obesity.by.year.and.sex
+```
+
+# Clean Data
+
+We clean the data by first pivoting the datasets such that we obtain one column with the prevalences and a new column indicating whether this applies to males, encoded as a _M_, or females, encoded as a _F_. Both datasets are combined and again pivoted to create a new column indicating whether the prevalences apply to overweight or obesity.
+
+```{r}
+bmi.by.year.and.sex <- prevalence.of.overweight.by.year.and.sex %>%
+  pivot_longer(
+    cols = !Category,
+    names_pattern = "(.*) .*",
+    names_to = "sex",
+    values_to = "prevalence_[25,Inf)"
+  ) %>%
+  full_join(
+    prevalence.of.obesity.by.year.and.sex %>%
+      pivot_longer(
+        cols = !Category,
+        names_pattern = "(.*) .*",
+        names_to = "sex",
+        values_to = "prevalence_[30,Inf)"
+      ),
+    by = c("Category", "sex")
+  ) %>%
+  mutate(
+    sex = recode_factor(
+      sex,
+      "mannen" = "M",
+      "vrouwen" = "F"
+    ),
+    year = Category,
+    `prevalence_[25,30)` = round((`prevalence_[25,Inf)` - `prevalence_[30,Inf)`) / 100, 3),
+    `prevalence_[30,Inf)` = round(`prevalence_[30,Inf)` / 100, 3)
+  ) %>%
+  pivot_longer(
+    cols = c("prevalence_[25,30)", "prevalence_[30,Inf)"),
+    names_pattern = "prevalence_(.*)",
+    names_to = "bmi",
+    values_to = "prevalence"
+  ) %>%
+  select(year, sex, bmi, prevalence) %>%
+  arrange(year, sex, bmi, prevalence)
+bmi.by.year.and.sex
+```
+
+# Write Output
+
+Finally, we write the cleaned data of VZinfo to a CSV file.
+
+```{r}
+write_csv(
+  x = bmi.by.year.and.sex,
+  file = "../Output-Data/VZinfo.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>

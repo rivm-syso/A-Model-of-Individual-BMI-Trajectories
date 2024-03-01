@@ -1,0 +1,449 @@
+---
+title: "Clean and Explore Gezondheidsmonitor Data"
+author: "Laurens Bogaardt"
+date: "2024-02-26"
+output:
+  html_document:
+    df_print: paged
+    fig_width: 10
+    fig.align: center
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: united
+    code_folding: show
+bibliography: ../A-Model-of-Individual-BMI-Trajectories.bib
+link-citations: yes
+---
+
+<style>
+body{text-align: justify}
+</style>
+
+# Introduction
+
+The purpose of this document is to clean and explore the Gezondheidsmonitor dataset. This is a Dutch cross-sectional dataset based on a large, health-related questionnaire administered by the Community Health Services, Statistics Netherlands and the National Institute for Public Health and the Environment [@GGD2012]. The dataset contains self-reported weight and height measurements, rounded to nearest kilogram and centimetre. The included survey weights allow for representative analyses of the Netherlands.
+
+Before we begin, we need to load the packages _tidyverse_, _haven_ and _vtable_ [@tidyverse2019; @haven2021; @vtable2021]. And we set a seed to ensure that all runs of this document produce the same output.
+
+```{r results = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(haven)
+library(vtable)
+set.seed(456)
+```
+
+# Load Input
+
+Let's load the Gezondheidsmonitor dataset. The survey was first conducted in September, October and November of 2012, and was repeated in 2016 and in 2020. However, the data for 2020 are likely to be affected by the COVID pandemic, which is not an effect we would like to include in our analyses. So we will combine the first two datasets here. Throughout the document, we will limit the output in each step. This is because the Gezondheidsmonitor data are not open access. To request access to the data, please visit [www.monitorgezondheid.nl](https://www.monitorgezondheid.nl).
+
+```{r}
+gezondheidsmonitor.data <- read_sav(
+  file = "../Input-Data/Gezondheidsmonitor/2022_07_22_GM2012_Totaalbestand GGD en CBS (N=387195).sav",
+  col_select = c("Surveynummer", "weegfactor3", "geslacht", "LFT0109", "opleiding_def", "AGGWS201")
+) %>%
+  zap_labels() %>%
+  rename(
+    sex = geslacht,
+    education = opleiding_def,
+    weight = weegfactor3,
+    age = LFT0109,
+    bmi = AGGWS201
+  ) %>%
+  mutate(year = 2012) %>%
+  bind_rows(
+    read_sav(
+      file = "../Input-Data/Gezondheidsmonitor/2018_06_20_Totaalbestand GGD en CBS (N=457153) Landelijk.sav",
+      col_select = c("Surveynummer", "ewGGD", "geslacht", "LFT0109", "Opleiding_samind", "AGGWS201")
+    ) %>%
+      zap_labels() %>%
+      rename(
+        sex = geslacht,
+        education = Opleiding_samind,
+        weight = ewGGD,
+        age = LFT0109,
+        bmi = AGGWS201
+      ) %>%
+      mutate(year = 2016)
+  )
+```
+
+# Clean Data
+
+We will examine each variable in the dataset and clean the data when necessary.
+
+## Survey Number
+
+The Gezondheidsmonitor dataset is a combination of a questionnaire administered by the Community Health Services and one administered by Statistics Netherlands. The variable _Surveynummer_ indicates which questionnaire the participant participated in.
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(Surveynummer)
+```
+
+We are only interested in the data gathered by the Community Health Services, so we will filter our dataset. The variable _Surveynummer_ is subsequently no longer needed.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(Surveynummer == 1) %>%
+  select(-Surveynummer)
+```
+
+## Survey Weights
+
+The survey weights included in the dataset allow for representative analyses of the Netherlands. Let's check if any of these are missing and whether they are all positive numbers.
+
+```{r}
+gezondheidsmonitor.data %>%
+  summarise(
+    min = min(weight),
+    max= max(weight),
+    na = sum(is.na(weight)),
+    zero = sum(weight == 0)
+  )
+```
+
+Let's remove the participants who have zero weight.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(weight > 0)
+```
+
+## Sex
+
+We verify that there are only two sexes and immediately check whether there are any missing values.
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(sex)
+```
+
+Let's recode the variable. A _M_ will encode males, whereas females are encoded by a _F_.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(
+    sex = recode_factor(
+      sex,
+      "1" = "M",
+      "2" = "F"
+    )
+  )
+```
+
+## Education
+
+Let's now check whether any participant is missing their level of education.
+
+```{r}
+gezondheidsmonitor.data %>%
+  count(education)
+```
+
+We will remove these participants from the dataset.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(!is.na(education))
+```
+
+Let's now recode the variable. Education was measured as the highest level reached and categorised into three levels. The lowest level, encoded by _L_, applies to people with intermediate secondary education or less, the medium level, encoded by _M_, aggregates higher secondary- and intermediate vocational education and highest level, encoded by _H_, includes higher vocational education and university.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(
+    education = recode_factor(
+      education,
+      "1" = "L",
+      "2" = "L",
+      "3" = "M",
+      "4" = "H",
+      .ordered = TRUE
+    )
+  )
+```
+
+## Age
+
+Let's check that there are only adults in the dataset. We also verify that there are no missing values.
+
+```{r}
+gezondheidsmonitor.data %>%
+  summarise(
+    min = min(age),
+    max = max(age),
+    na = sum(is.na(age))
+  )
+```
+
+The dataset contains values for the age of the participants which are rounded down to the nearest year. A simple solution to be able to interpret their age as the time since birth is to add half a year to these values.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  mutate(
+    age = age + 0.5
+  )
+```
+
+## BMI
+
+In most of their analyses, Statistics Netherlands removes outlying BMI values whereby it uses $14 kg / m^2$ and $50 kg / m^2$ as the lower and upper limits. Let's check whether we have such outliers in our data and if there are any missing values.
+
+```{r}
+gezondheidsmonitor.data %>%
+  summarise(
+    min = min(bmi, na.rm = TRUE),
+    max = max(bmi, na.rm = TRUE),
+    na = sum(is.na(bmi)),
+    below = sum(bmi < 14, na.rm = TRUE),
+    above = sum(bmi > 50, na.rm = TRUE)
+  )
+```
+
+Let's remove the rows with missing values.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  filter(!is.na(bmi))
+```
+
+## Order Rows and Columns
+
+As a final cleaning step, let's reorder the columns and arrange the rows of the dataset.
+
+```{r}
+gezondheidsmonitor.data <- gezondheidsmonitor.data %>%
+  select(year, sex, education, age, weight, bmi) %>%
+  arrange(year, sex, education, age, weight)
+```
+
+# Explore Data
+
+We will examine each variable in the dataset, now that the data have been cleaned. But let's first look at an overview of the dataset.
+
+```{r}
+vtable(gezondheidsmonitor.data, out = "return", missing = TRUE)
+```
+
+## Participation
+
+Let's see how many participants we have per year.
+
+```{r}
+gezondheidsmonitor.participants.by.year <- gezondheidsmonitor.data %>%
+  count(year)
+gezondheidsmonitor.participants.by.year
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(year),
+      y = n,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.participants.by.year,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "Number of participants"
+  )
+```
+
+## Sex
+
+Let's check, per year, what the number and percentages of males and females is.
+
+```{r}
+gezondheidsmonitor.prevalence.by.year.and.sex <- gezondheidsmonitor.data %>%
+  count(year, sex) %>%
+  group_by(year) %>%
+  mutate(
+    prevalence = n / sum(n)
+  ) %>%
+  ungroup()
+gezondheidsmonitor.prevalence.by.year.and.sex
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(year),
+      y = prevalence,
+      fill = sex
+    ),
+    data = gezondheidsmonitor.prevalence.by.year.and.sex
+  ) +
+  labs(
+    x = "Year",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Sex",
+    label = c("M" = "Male", "F" = "Female")
+  )
+```
+
+## Education
+
+Let's check, per year, what the number and percentages of each of the three levels of education is.
+
+```{r}
+gezondheidsmonitor.prevalence.by.year.and.education <- gezondheidsmonitor.data %>%
+  count(year, education) %>%
+  group_by(year) %>%
+  mutate(
+    prevalence = n / sum(n)
+  ) %>%
+  ungroup()
+gezondheidsmonitor.prevalence.by.year.and.education
+```
+
+We can visualise this in a plot.
+
+```{r}
+ggplot() +
+  geom_col(
+    mapping = aes(
+      x = factor(year),
+      y = prevalence,
+      fill = education
+    ),
+    data = gezondheidsmonitor.prevalence.by.year.and.education
+  ) +
+  labs(
+    x = "Year",
+    y = "Prevalence"
+  ) +
+  scale_fill_discrete(
+    name = "Level of education",
+    labels = c("L" = "Low", "M" = "Medium", "H" = "High")
+  )
+```
+
+## Age
+
+Let's check, per year, what the minimum, mean and maximum age is.
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year) %>%
+  summarise(
+    min.age = min(age),
+    mean.age = mean(age),
+    max.age = max(age),
+    .groups = "drop"
+  )
+```
+
+We can visualise the age distribution in a boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = factor(year),
+      y = age,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.data,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "Age"
+  )
+```
+
+We can also visualise the probability density of the age distribution by year.
+
+```{r}
+ggplot() + 
+  geom_density(
+    mapping = aes(
+      x = age,
+      col = factor(year)
+    ),
+    data = gezondheidsmonitor.data
+  ) +
+  labs(
+    x = "Age",
+    y = "Probability density",
+    col = "Year"
+  )
+```
+
+## BMI
+
+Let's check, per year, what the minimum, mean and maximum BMI value is.
+
+```{r}
+gezondheidsmonitor.data %>%
+  group_by(year) %>%
+  summarise(
+    min.bmi = min(bmi),
+    mean.bmi = mean(bmi),
+    max.bmi = max(bmi),
+    .groups = "drop"
+  )
+```
+
+We can visualise the BMI distribution in a boxplot.
+
+```{r}
+ggplot() +
+  geom_boxplot(
+    mapping = aes(
+      x = factor(year),
+      y = bmi,
+      fill = factor(year)
+    ),
+    data = gezondheidsmonitor.data,
+    show.legend = FALSE
+  ) +
+  labs(
+    x = "Year",
+    y = "BMI"
+  )
+```
+
+We can also visualise the probability density of the BMI distribution by year.
+
+```{r}
+ggplot() +
+  geom_density(
+    mapping = aes(
+      x = bmi,
+      colour = factor(year)
+    ),
+    data = gezondheidsmonitor.data
+  ) +
+  labs(
+    x = "BMI",
+    y = "Probability density",
+    col = "Year"
+  )
+```
+
+# Write Output
+
+Finally, we write the cleaned data of the Gezondheidsmonitor to a CSV file.
+
+```{r}
+write_csv(
+  x = gezondheidsmonitor.data,
+  file = "../Output-Data/Gezondheidsmonitor.csv"
+)
+```
+
+# References
+
+<div id="refs"></div>
